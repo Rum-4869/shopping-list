@@ -8,21 +8,40 @@
 </head>
 <body>
   <div class="container">
-    <h1>📝 わたしの買い物リスト</h1>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">今日の買い物</p>
+        <h1>買い物リスト</h1>
+      </div>
+      <span class="badge"><%= items.filter(item => !item.done).length %>件残り</span>
+    </header>
 
-    <!-- アイテムを追加するフォーム -->
     <form class="add-form" action="/add" method="post">
-      <!-- name="itemName" が、app.jsの req.body.itemName と連動します -->
-      <input type="text" name="itemName" placeholder="買うものを入力" required>
+      <input
+        type="text"
+        name="itemName"
+        placeholder="買うものを入力"
+        maxlength="30"
+        required
+        aria-label="買うもの"
+      >
       <button class="add-btn" type="submit">追加</button>
     </form>
+    <p class="helper-text">1〜30文字で入力できます</p>
 
-    <!-- リスト一覧と削除ボタン -->
-    <ul>
+    <ul class="item-list">
       <% items.forEach((item, index) => { %>
-        <li>
-          <%= item %>
-          <!-- 削除用のフォーム -->
+        <% const itemName = typeof item === 'string' ? item : item.name; %>
+        <% const isDone = typeof item === 'string' ? false : item.done; %>
+        <li class="shopping-item <%= isDone ? 'done' : '' %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
+          <form class="toggle-form" action="/toggle/<%= index %>" method="post">
+            <button class="check-btn" type="submit" aria-label="<%= isDone ? '未完了に戻す' : '完了にする' %>">
+              <span class="checkmark"><%= isDone ? '✓' : '' %></span>
+            </button>
+          </form>
+
+          <span class="item-name"><%= itemName %></span>
+
           <form class="delete-form" action="/delete/<%= index %>" method="post">
             <button class="delete-btn" type="submit">削除</button>
           </form>
@@ -30,5 +49,76 @@
       <% }) %>
     </ul>
   </div>
+
+  <script>
+    (() => {
+      const KEY = 'shopping-list-items-v1';
+      const input = document.querySelector('input[name="itemName"]');
+      const form = document.querySelector('.add-form');
+      const list = document.querySelector('.item-list');
+
+      if (!input || !form || !list) return;
+
+      const syncStorage = () => {
+        const items = [...document.querySelectorAll('.shopping-item')].map((item) => ({
+          name: item.dataset.name || item.querySelector('.item-name')?.textContent?.trim() || '',
+          done: item.classList.contains('done')
+        }));
+
+        localStorage.setItem(KEY, JSON.stringify(items));
+      };
+
+      const restoreStorage = () => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(KEY) || '[]');
+          if (!Array.isArray(saved) || saved.length === 0) return;
+
+          const items = [...document.querySelectorAll('.shopping-item')];
+          saved.forEach((entry, index) => {
+            const target = items[index];
+            if (!target || !entry || !entry.name) return;
+
+            target.dataset.name = entry.name;
+            const nameEl = target.querySelector('.item-name');
+            if (nameEl) nameEl.textContent = entry.name;
+
+            const isDone = Boolean(entry.done);
+            target.classList.toggle('done', isDone);
+
+            const checkBtn = target.querySelector('.check-btn');
+            const checkmark = target.querySelector('.checkmark');
+            if (checkBtn && checkmark) {
+              checkBtn.setAttribute('aria-label', isDone ? '未完了に戻す' : '完了にする');
+              checkmark.textContent = isDone ? '✓' : '';
+            }
+          });
+        } catch (error) {
+          console.warn('ローカルストレージの読み込みに失敗しました', error);
+        }
+      };
+
+      input.addEventListener('input', () => {
+        const remaining = 30 - input.value.length;
+        const helper = document.querySelector('.helper-text');
+        if (helper) {
+          helper.textContent = remaining >= 0 ? `${remaining}文字入力できます` : '30文字以内で入力してください';
+        }
+      });
+
+      form.addEventListener('submit', () => {
+        setTimeout(syncStorage, 50);
+      });
+
+      document.addEventListener('click', (event) => {
+        const target = event.target.closest('.delete-btn, .check-btn');
+        if (target) {
+          setTimeout(syncStorage, 50);
+        }
+      });
+
+      restoreStorage();
+      syncStorage();
+    })();
+  </script>
 </body>
 </html>

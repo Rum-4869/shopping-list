@@ -5,6 +5,7 @@
   --primary: #4f9cff;
   --primary-dark: #2f7ae5;
   --success: #34c759;
+  --success-soft: #eafaf0;
   --danger: #ff5d5d;
   --text: #1e2a39;
   --muted: #6b7280;
@@ -28,8 +29,49 @@ body {
   color: var(--text);
 }
 
+.landing-page,
 .container {
   width: min(100%, 390px);
+}
+
+.landing-page {
+  display: flex;
+  justify-content: center;
+}
+
+.landing-card {
+  width: 100%;
+  background: var(--panel-bg);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 30px;
+  box-shadow: var(--shadow);
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.hero-mark {
+  font-size: 3rem;
+  margin-bottom: 10px;
+}
+
+.landing-copy {
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 12px 0 22px;
+}
+
+.primary-btn {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  text-decoration: none;
+  padding: 14px 26px;
+  border-radius: 14px;
+  font-weight: 700;
+  box-shadow: 0 12px 20px rgba(79, 156, 255, 0.22);
+}
+
+.container {
   background: var(--panel-bg);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.7);
@@ -38,18 +80,45 @@ body {
   padding: 20px 18px 16px;
 }
 
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 h1 {
-  margin: 0 0 18px;
+  margin: 0;
   font-size: 1.5rem;
-  text-align: center;
   letter-spacing: 0.04em;
   color: var(--text);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #edf7ff;
+  color: var(--primary-dark);
+  font-weight: 700;
+  font-size: 0.74rem;
 }
 
 .add-form {
   display: flex;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 input[type="text"] {
@@ -70,8 +139,16 @@ input[type="text"]:focus {
   box-shadow: 0 0 0 3px rgba(79, 156, 255, 0.15);
 }
 
+.helper-text {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  text-align: right;
+}
+
 .add-btn,
-.delete-btn {
+.delete-btn,
+.check-btn {
   border: none;
   border-radius: 14px;
   font-weight: 700;
@@ -80,7 +157,8 @@ input[type="text"]:focus {
 }
 
 .add-btn:active,
-.delete-btn:active {
+.delete-btn:active,
+.check-btn:active {
   transform: scale(0.98);
 }
 
@@ -92,16 +170,15 @@ input[type="text"]:focus {
   box-shadow: 0 10px 20px rgba(52, 199, 89, 0.28);
 }
 
-ul {
+.item-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-li {
+.shopping-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   background: #f9fbff;
   border: 1px solid var(--line);
@@ -109,10 +186,61 @@ li {
   padding: 12px 12px 12px 14px;
   margin-bottom: 10px;
   font-size: 1rem;
+  animation: slideIn 0.2s ease;
+  transition: all 0.2s ease;
 }
 
-li:last-child {
-  margin-bottom: 0;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shopping-item.done {
+  background: var(--success-soft);
+  border-color: #cfeed9;
+}
+
+.toggle-form {
+  display: flex;
+  align-items: center;
+}
+
+.check-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #c7d9ec;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+  font-size: 0.9rem;
+  box-shadow: 0 4px 8px rgba(79, 156, 255, 0.08);
+}
+
+.shopping-item.done .check-btn {
+  border-color: var(--success);
+  background: var(--success);
+  color: white;
+}
+
+.item-name {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.shopping-item.done .item-name {
+  text-decoration: line-through;
+  color: var(--muted);
 }
 
 .delete-form {
@@ -136,6 +264,10 @@ li:last-child {
   .container {
     border-radius: 24px;
     padding: 16px 14px 14px;
+  }
+
+  .app-header {
+    align-items: flex-start;
   }
 
   .add-form {
