@@ -83,6 +83,11 @@ function sanitizeItemName(value) {
   return name;
 }
 
+function isJsonRequest(req) {
+  const accept = String(req.headers.accept || '');
+  return accept.includes('application/json') || req.xhr || req.get('X-Requested-With') === 'XMLHttpRequest';
+}
+
 // ① 開始画面（GET）
 app.get('/', (req, res) => {
   res.render('landing.ejs');
@@ -105,6 +110,9 @@ app.get('/settings', (req, res) => {
 app.post('/add', (req, res) => {
   const newItemName = sanitizeItemName(req.body.itemName);
   if (!newItemName) {
+    if (isJsonRequest(req)) {
+      return res.status(400).json({ ok: false, message: 'invalid item name' });
+    }
     return res.redirect('/list');
   }
 
@@ -114,11 +122,20 @@ app.post('/add', (req, res) => {
   });
 
   if (hasDuplicate) {
+    if (isJsonRequest(req)) {
+      return res.status(409).json({ ok: false, message: 'duplicate item' });
+    }
     return res.redirect('/list');
   }
 
-  items.push(createItem(newItemName));
+  const item = createItem(newItemName);
+  items.push(item);
   saveItems();
+
+  if (isJsonRequest(req)) {
+    return res.json({ ok: true, item });
+  }
+
   res.redirect('/list');
 });
 
@@ -128,6 +145,11 @@ app.post('/toggle/:id', (req, res) => {
   if (target) {
     target.done = !target.done;
     saveItems();
+    if (isJsonRequest(req)) {
+      return res.json({ ok: true, item: target });
+    }
+  } else if (isJsonRequest(req)) {
+    return res.status(404).json({ ok: false, message: 'item not found' });
   }
   res.redirect('/list');
 });
@@ -154,8 +176,14 @@ app.post('/reorder', (req, res) => {
 // ★新機能3：削除ボタンが押された時の処理（POST）
 app.post('/delete/:id', (req, res) => {
   const id = Number(req.params.id);
+  const target = items.find((item) => item.id === id);
   items = items.filter((item) => item.id !== id);
   saveItems();
+
+  if (isJsonRequest(req)) {
+    return res.json({ ok: true, deleted: Boolean(target), id });
+  }
+
   res.redirect('/list');
 });
 

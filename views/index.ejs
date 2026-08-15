@@ -8,14 +8,6 @@
 </head>
 <body>
   <div class="container">
-    <div class="status-bar">
-      <span>9:41</span>
-      <div class="status-icons">
-        <span class="signal"></span>
-        <span class="battery"></span>
-      </div>
-    </div>
-
     <header class="app-header">
       <div>
         <p class="eyebrow">今日の買い物</p>
@@ -67,6 +59,14 @@
 
       if (!input || !form || !list) return;
 
+      const updateBadge = () => {
+        const badge = document.querySelector('.badge');
+        if (!badge) return;
+
+        const remaining = [...document.querySelectorAll('.shopping-item')].filter((item) => !item.classList.contains('done')).length;
+        badge.textContent = `${remaining}件残り`;
+      };
+
       const syncStorage = () => {
         const items = [...document.querySelectorAll('.shopping-item')].map((item) => ({
           id: Number(item.dataset.id),
@@ -75,6 +75,7 @@
         }));
 
         localStorage.setItem(KEY, JSON.stringify(items));
+        updateBadge();
       };
 
       const sendReorder = async () => {
@@ -144,14 +145,173 @@
         }
       });
 
-      form.addEventListener('submit', () => {
-        setTimeout(syncStorage, 50);
+      const createItemElement = (item) => {
+        const li = document.createElement('li');
+        li.className = `shopping-item ${item.done ? 'done' : ''}`;
+        li.dataset.id = String(item.id);
+        li.dataset.name = item.name;
+        li.dataset.done = String(Boolean(item.done));
+
+        li.innerHTML = `
+          <form class="toggle-form" action="/toggle/${item.id}" method="post">
+            <button class="check-btn" type="submit" aria-label="${item.done ? '未完了に戻す' : '完了にする'}">
+              <span class="checkmark">${item.done ? '✓' : ''}</span>
+            </button>
+          </form>
+          <span class="item-name">${item.name}</span>
+          <form class="delete-form" action="/delete/${item.id}" method="post">
+            <button class="delete-btn" type="submit">削除</button>
+          </form>
+        `;
+
+        li.draggable = true;
+        return li;
+      };
+
+      const attachItemEvents = (itemElement) => {
+        itemElement.addEventListener('dragstart', (event) => {
+          draggedItem = itemElement;
+          itemElement.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', itemElement.dataset.id || '');
+        });
+
+        itemElement.addEventListener('dragend', () => {
+          itemElement.classList.remove('dragging');
+          itemElement.classList.remove('drag-over');
+          itemElement.classList.remove('drag-over-top');
+          itemElement.classList.remove('drag-over-bottom');
+          draggedItem = null;
+        });
+
+        itemElement.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          if (!draggedItem || draggedItem === itemElement) return;
+          itemElement.classList.add('drag-over');
+          const rect = itemElement.getBoundingClientRect();
+          const isBelowMidpoint = event.clientY > rect.top + rect.height / 2;
+          itemElement.classList.toggle('drag-over-top', !isBelowMidpoint);
+          itemElement.classList.toggle('drag-over-bottom', isBelowMidpoint);
+        });
+
+        itemElement.addEventListener('dragleave', () => {
+          itemElement.classList.remove('drag-over');
+          itemElement.classList.remove('drag-over-top');
+          itemElement.classList.remove('drag-over-bottom');
+        });
+
+        itemElement.addEventListener('drop', (event) => {
+          event.preventDefault();
+          if (!draggedItem || draggedItem === itemElement) return;
+
+          const rect = itemElement.getBoundingClientRect();
+          const insertAfter = event.clientY > rect.top + rect.height / 2;
+          const parent = itemElement.parentElement;
+
+          if (insertAfter) {
+            parent.insertBefore(draggedItem, itemElement.nextSibling);
+          } else {
+            parent.insertBefore(draggedItem, itemElement);
+          }
+
+          itemElement.classList.remove('drag-over');
+          itemElement.classList.remove('drag-over-top');
+          itemElement.classList.remove('drag-over-bottom');
+          sendReorder();
+        });
+      };
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        try {
+          const formData = new FormData(form);
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams(formData).toString()
+          });
+
+          if (!response.ok) {
+            throw new Error('submit failed');
+          }
+
+          const data = await response.json();
+          if (!data || !data.ok || !data.item) {
+            throw new Error('invalid response');
+          }
+
+          const itemElement = createItemElement(data.item);
+          attachItemEvents(itemElement);
+          list.appendChild(itemElement);
+          form.reset();
+          syncStorage();
+        } catch (error) {
+          form.submit();
+        }
       });
 
-      document.addEventListener('click', (event) => {
-        const target = event.target.closest('.delete-btn, .check-btn');
-        if (target) {
-          setTimeout(syncStorage, 50);
+      document.addEventListener('submit', async (event) => {
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement)) return;
+
+        if (form.classList.contains('toggle-form')) {
+          event.preventDefault();
+          const id = Number(form.action.split('/').pop());
+          const item = document.querySelector(`.shopping-item[data-id="${id}"]`);
+          if (!item) return;
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+              body: new URLSearchParams(new FormData(form)).toString()
+            });
+
+            if (!response.ok) {
+              throw new Error('toggle failed');
+            }
+
+            const data = await response.json();
+            const done = Boolean(data && data.item && data.item.done);
+            item.classList.toggle('done', done);
+            const checkBtn = item.querySelector('.check-btn');
+            const checkmark = item.querySelector('.checkmark');
+            if (checkBtn && checkmark) {
+              checkBtn.setAttribute('aria-label', done ? '未完了に戻す' : '完了にする');
+              checkmark.textContent = done ? '✓' : '';
+            }
+            syncStorage();
+          } catch (error) {
+            form.submit();
+          }
+        }
+
+        if (form.classList.contains('delete-form')) {
+          event.preventDefault();
+          const id = Number(form.action.split('/').pop());
+          const item = document.querySelector(`.shopping-item[data-id="${id}"]`);
+          if (!item) return;
+
+          try {
+            const response = await fetch(form.action, {
+              method: 'POST',
+              headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+              body: new URLSearchParams(new FormData(form)).toString()
+            });
+
+            if (!response.ok) {
+              throw new Error('delete failed');
+            }
+
+            item.remove();
+            syncStorage();
+          } catch (error) {
+            form.submit();
+          }
         }
       });
 
