@@ -67,6 +67,15 @@ async function initDatabase() {
       INDEX idx_user_id (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  // メモ帳テーブル
+  await currentPool.query(`
+    CREATE TABLE IF NOT EXISTS shopping_notes (
+      user_id VARCHAR(64) PRIMARY KEY,
+      content TEXT,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
 }
 
 async function ensureUserInitialized(userId) {
@@ -219,6 +228,43 @@ async function deleteItem(userId, itemId) {
   };
 }
 
+async function deleteCompletedItems(userId) {
+  const currentPool = getPool();
+  const [result] = await currentPool.query(
+    'DELETE FROM shopping_items WHERE user_id = ? AND done = 1',
+    [userId]
+  );
+
+  return {
+    ok: true,
+    count: result.affectedRows || 0
+  };
+}
+
+async function getNoteForUser(userId) {
+  const currentPool = getPool();
+  const [rows] = await currentPool.query(
+    'SELECT content, updated_at FROM shopping_notes WHERE user_id = ? LIMIT 1',
+    [userId]
+  );
+
+  return rows.length > 0 ? rows[0].content : '';
+}
+
+async function saveNoteForUser(userId, content) {
+  const currentPool = getPool();
+  const textContent = String(content || '');
+
+  await currentPool.query(
+    `INSERT INTO shopping_notes (user_id, content)
+     VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE content = VALUES(content), updated_at = CURRENT_TIMESTAMP`,
+    [userId, textContent]
+  );
+
+  return { ok: true };
+}
+
 async function closePool() {
   if (pool) {
     await pool.end();
@@ -234,6 +280,11 @@ module.exports = {
   toggleItem,
   reorderItems,
   deleteItem,
+  deleteCompletedItems,
+  getNoteForUser,
+  saveNoteForUser,
   closePool
 };
+
+
 

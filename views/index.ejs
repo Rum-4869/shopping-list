@@ -5,16 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f9cff">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
   <div class="container">
     <header class="app-header">
       <div>
-        <p class="eyebrow">今日の買い物</p>
+        <p class="eyebrow"><%= isShared ? '共有リスト' : '今日の買い物' %></p>
         <h1>買い物リスト</h1>
       </div>
-      <span class="badge"><%= items.filter(item => !item.done).length %>件残り</span>
     </header>
+
+    <% if (isShared) { %>
+      <div class="share-banner">
+        <div class="share-banner-content">
+          <span class="share-banner-tag">共有中</span>
+          <span>合言葉: <strong><%= roomName %></strong></span>
+        </div>
+        <form action="/share/leave" method="post" style="margin: 0;">
+          <button class="share-banner-leave" type="submit" aria-label="個人リストに戻る">解除</button>
+        </form>
+      </div>
+    <% } %>
+
 
     <form class="add-form" action="/add" method="post">
       <input
@@ -28,6 +46,18 @@
       <button class="add-btn" type="submit">追加</button>
     </form>
     <p class="helper-text">1〜30文字で入力できます</p>
+
+    <div class="list-toolbar">
+      <span class="badge"><%= items.filter(item => !item.done).length %>件残り</span>
+      <% const completedCount = items.filter(item => item.done).length; %>
+      <button id="clear-completed-btn" class="clear-completed-btn <%= completedCount === 0 ? 'hidden' : '' %>" type="button" aria-label="購入済みをまとめて削除">
+        <svg class="clear-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        <span>購入済みを削除 (<span id="completed-count"><%= completedCount %></span>)</span>
+      </button>
+    </div>
+
 
     <ul class="item-list">
       <% items.forEach((item, index) => { %>
@@ -81,13 +111,66 @@
 
       if (!input || !form || !list) return;
 
+      const clearBtn = document.getElementById('clear-completed-btn');
+      const completedCountEl = document.getElementById('completed-count');
+
       const updateBadge = () => {
         const badge = document.querySelector('.badge');
-        if (!badge) return;
+        const items = [...document.querySelectorAll('.shopping-item:not(.removing)')];
+        const remaining = items.filter((item) => !item.classList.contains('done')).length;
+        const completed = items.filter((item) => item.classList.contains('done')).length;
 
-        const remaining = [...document.querySelectorAll('.shopping-item')].filter((item) => !item.classList.contains('done')).length;
-        badge.textContent = `${remaining}件残り`;
+        if (badge) {
+          badge.textContent = `${remaining}件残り`;
+        }
+
+        if (clearBtn && completedCountEl) {
+          completedCountEl.textContent = completed;
+          if (completed > 0) {
+            clearBtn.classList.remove('hidden');
+          } else {
+            clearBtn.classList.add('hidden');
+          }
+        }
       };
+
+      if (clearBtn) {
+        clearBtn.addEventListener('click', async () => {
+          const completedItems = [...document.querySelectorAll('.shopping-item.done:not(.removing)')];
+          if (completedItems.length === 0) return;
+
+          if (!confirm(`購入済みのアイテム（${completedItems.length}件）をすべて削除しますか？`)) {
+            return;
+          }
+
+          try {
+            const response = await fetch('/clear-completed', {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error('clear-completed failed');
+            }
+
+            completedItems.forEach((item) => {
+              item.classList.add('removing');
+            });
+
+            setTimeout(() => {
+              completedItems.forEach((item) => item.remove());
+              syncStorage();
+            }, 250);
+          } catch (error) {
+            console.error('一括削除に失敗しました', error);
+            alert('削除に失敗しました。ページを再読み込みしてください。');
+          }
+        });
+      }
+
 
       const syncStorage = () => {
         const items = [...document.querySelectorAll('.shopping-item')].map((item) => ({
@@ -432,5 +515,15 @@
       </svg>
     </a>
   </nav>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

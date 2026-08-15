@@ -100,3 +100,110 @@ test('CRUD operations (add, toggle, reorder, delete) persist properly in TiDB', 
   const exists = finalItems.some((i) => i.id === newItemId);
   assert.equal(exists, false);
 });
+
+test('clear-completed removes only done items and keeps active items', async () => {
+  const testUser = `test-user-clear-${Date.now()}`;
+
+  // 初期アイテム（4件）取得
+  const items = await db.loadItemsForUser(testUser);
+  assert.equal(items.length, 4);
+
+  // 1つ目と2つ目をトグルして完了にする
+  await request(app)
+    .post(`/toggle/${items[0].id}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  await request(app)
+    .post(`/toggle/${items[1].id}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  // 一括削除実行
+  const clearRes = await request(app)
+    .post('/clear-completed')
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .set('X-Requested-With', 'XMLHttpRequest');
+
+  assert.equal(clearRes.status, 200);
+  assert.equal(clearRes.body.ok, true);
+  assert.equal(clearRes.body.count, 2);
+
+  // 残りアイテムを確認（未完了の2件のみ残っていること）
+  const remaining = await db.loadItemsForUser(testUser);
+  assert.equal(remaining.length, 2);
+  assert.equal(remaining.every((item) => !item.done), true);
+});
+
+test('Notes are persisted to TiDB and separate per user', async () => {
+  const userA = `test-user-note-a-${Date.now()}`;
+  const userB = `test-user-note-b-${Date.now()}`;
+
+  // ユーザーAがメモ保存
+  const saveRes = await request(app)
+    .post('/notes')
+    .set('Cookie', `shopping_user_id=${userA}`)
+    .set('Accept', 'application/json')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .type('form')
+    .send({ content: 'カレーの材料：じゃがいも、人参' });
+
+  assert.equal(saveRes.status, 200);
+  assert.equal(saveRes.body.ok, true);
+
+  // ユーザーAがメモ取得
+  const getResA = await request(app)
+    .get('/notes')
+    .set('Cookie', `shopping_user_id=${userA}`);
+
+  assert.match(getResA.text, /カレーの材料：じゃがいも、人参/);
+
+  // ユーザーBにはユーザーAのメモが見えないこと
+  const getResB = await request(app)
+    .get('/notes')
+    .set('Cookie', `shopping_user_id=${userB}`);
+
+  assert.doesNotMatch(getResB.text, /カレーの材料：じゃがいも、人参/);
+});
+
+test('Room code sharing allows multiple users to share same list and note', async () => {
+  const roomName = `family-room-${Date.now()}`;
+  const userA = `user-a-${Date.now()}`;
+  const userB = `user-b-${Date.now()}`;
+
+  // ユーザーAが合言葉に参加
+  const joinResA = await request(app)
+    .post('/share/join')
+    .set('Cookie', `shopping_user_id=${userA}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ roomName });
+
+  assert.equal(joinResA.status, 200);
+
+  // ユーザーAが共有リストにアイテム追加
+  const addRes = await request(app)
+    .post('/add')
+    .set('Cookie', `shopping_user_id=${userA}; shopping_room_id=${roomName}`)
+    .set('Accept', 'application/json')
+    .set('X-Requested-With', 'XMLHttpRequest')
+    .type('form')
+    .send({ itemName: 'みんなのアイス' });
+
+  assert.equal(addRes.status, 200);
+  assert.equal(addRes.body.ok, true);
+
+  // ユーザーBが同じ合言葉で参加してリストを閲覧
+  const listResB = await request(app)
+    .get('/list')
+    .set('Cookie', `shopping_user_id=${userB}; shopping_room_id=${roomName}`);
+
+  assert.match(listResB.text, /みんなのアイス/);
+  assert.match(listResB.text, new RegExp(roomName));
+  assert.match(listResB.text, /共有中/);
+});
+
+

@@ -1,0 +1,18 @@
+{
+  "name": "買い物リスト - スマートショッピング",
+  "short_name": "買い物リスト",
+  "description": "家族と合言葉でリアルタイム共有できるスマートな買い物リストアプリ",
+  "start_url": "/list",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f9cff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

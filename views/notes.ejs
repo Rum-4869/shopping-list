@@ -3,25 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>メモ</title>
+  <title>メモ - 買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f9cff">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
   <div class="container">
     <header class="app-header">
       <div>
-        <p class="eyebrow">メモ</p>
+        <p class="eyebrow"><%= isShared ? '共有メモ' : 'メモ' %></p>
         <h1>メモ帳</h1>
       </div>
     </header>
 
-    <div class="mini-panel">
-      <p>買い物のメモを残せるスペースです。</p>
-      <textarea class="note-box" placeholder="今日は何を買う？"></textarea>
-      <div class="panel-actions">
-        <button class="secondary-btn" id="save-note-btn" type="button">保存する</button>
-        <span id="save-status" class="save-status" aria-live="polite">未保存</span>
+    <% if (isShared) { %>
+      <div class="share-banner">
+        <div class="share-banner-content">
+          <span class="share-banner-tag">共有中</span>
+          <span>合言葉: <strong><%= roomName %></strong></span>
+        </div>
+        <form action="/share/leave" method="post" style="margin: 0;">
+          <button class="share-banner-leave" type="submit" aria-label="個人リストに戻る">解除</button>
+        </form>
       </div>
+    <% } %>
+
+    <div class="mini-panel">
+      <p>買い物のメモを残せるスペースです（クラウドに自動保存されます）。</p>
+      <form id="note-form" action="/notes" method="post">
+        <textarea class="note-box" name="content" placeholder="買いたいもののレシピや特売情報などをメモ…"><%= note || '' %></textarea>
+        <div class="panel-actions">
+          <button class="secondary-btn" id="save-note-btn" type="submit">保存する</button>
+          <span id="save-status" class="save-status <%= note ? 'saved' : '' %>" aria-live="polite"><%= note ? '保存済み' : '未保存' %></span>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -52,36 +72,65 @@
       const settings = JSON.parse(localStorage.getItem(THEME_KEY) || '{}');
       document.body.classList.toggle('dark-mode', settings.theme === 'dark');
 
-      const STORAGE_KEY = 'shopping-note-v1';
       const textarea = document.querySelector('.note-box');
-      const saveButton = document.getElementById('save-note-btn');
+      const form = document.getElementById('note-form');
       const status = document.getElementById('save-status');
 
-      if (!textarea || !saveButton || !status) return;
+      if (!textarea || !form || !status) return;
 
-      textarea.value = localStorage.getItem(STORAGE_KEY) || '';
+      let saveTimeout = null;
 
-      const markSaved = () => {
-        status.textContent = '保存済み';
-        status.classList.add('saved');
+      const setStatus = (text, isSaved = false, isSaving = false) => {
+        status.textContent = text;
+        status.classList.toggle('saved', isSaved);
+        status.classList.toggle('saving', isSaving);
       };
 
-      const markUnsaved = () => {
-        status.textContent = '未保存';
-        status.classList.remove('saved');
+      const saveNote = async () => {
+        setStatus('保存中...', false, true);
+        try {
+          const response = await fetch('/notes', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({ content: textarea.value }).toString()
+          });
+
+          if (response.ok) {
+            setStatus('保存済み ✓', true, false);
+          } else {
+            setStatus('保存失敗', false, false);
+          }
+        } catch (error) {
+          console.warn('メモの保存に失敗しました', error);
+          setStatus('保存失敗', false, false);
+        }
       };
 
-      textarea.addEventListener('input', markUnsaved);
-
-      saveButton.addEventListener('click', () => {
-        localStorage.setItem(STORAGE_KEY, textarea.value);
-        markSaved();
+      textarea.addEventListener('input', () => {
+        setStatus('入力中… (未保存)', false, false);
+        clearTimeout(saveTimeout);
+        // 入力停止から1.2秒後にオートセーブ
+        saveTimeout = setTimeout(saveNote, 1200);
       });
 
-      if (textarea.value.trim()) {
-        markSaved();
-      }
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        clearTimeout(saveTimeout);
+        saveNote();
+      });
     })();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>

@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>設定</title>
+  <title>設定 - 買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f9cff">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
   <div class="container">
@@ -28,6 +34,40 @@
         <span>テーマ</span>
         <button class="theme-switch" type="button" id="theme-toggle">ライト</button>
       </div>
+    </div>
+
+    <!-- リスト共有（合言葉）設定 -->
+    <div class="mini-panel share-panel">
+      <h2 style="font-size: 1rem; margin: 0 0 8px; color: var(--text);">リスト共有（合言葉）</h2>
+      <% if (isShared) { %>
+        <p style="margin: 0 0 10px; font-size: 0.84rem;">
+          現在、合言葉 <strong>「<%= roomName %>」</strong> で共有中です。この合言葉を知っている人とリストを共同編集できます。
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button id="copy-share-url-btn" class="share-copy-btn" type="button">
+            <span>🔗 共有リンクをコピー</span>
+          </button>
+          <form action="/share/leave" method="post" style="margin-top: 4px;">
+            <button class="share-leave-btn" type="submit" style="width: 100%;">共有を解除して個人リストに戻る</button>
+          </form>
+        </div>
+      <% } else { %>
+        <p style="margin: 0 0 10px; font-size: 0.84rem;">
+          合言葉を設定すると、同じ合言葉を入力した家族やパートナーとリアルタイムで買い物リストを共有できます。
+        </p>
+        <form class="share-form" action="/share/join" method="post">
+          <input
+            class="share-input"
+            type="text"
+            name="roomName"
+            placeholder="例: tanaka-family"
+            maxlength="30"
+            required
+            aria-label="合言葉"
+          >
+          <button class="share-join-btn" type="submit">参加</button>
+        </form>
+      <% } %>
     </div>
   </div>
 
@@ -54,24 +94,7 @@
 
   <script>
     (() => {
-      const getCurrentUserId = () => {
-        const cookies = Object.fromEntries(
-          document.cookie
-            .split(';')
-            .map((cookie) => cookie.trim())
-            .filter(Boolean)
-            .map((cookie) => {
-              const index = cookie.indexOf('=');
-              const key = index >= 0 ? cookie.slice(0, index) : cookie;
-              const value = index >= 0 ? decodeURIComponent(cookie.slice(index + 1)) : '';
-              return [key, value];
-            })
-        );
-
-        return cookies.shopping_user_id || 'guest';
-      };
-
-      const SETTINGS_KEY = `shopping-settings-v1-${getCurrentUserId()}`;
+      const THEME_KEY = 'shopping-settings-v1';
       const defaults = {
         notifications: true,
         sound: false,
@@ -84,14 +107,14 @@
 
       const readSettings = () => {
         try {
-          return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+          return { ...defaults, ...JSON.parse(localStorage.getItem(THEME_KEY) || '{}') };
         } catch (error) {
           return { ...defaults };
         }
       };
 
       const persistSettings = (settings) => {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        localStorage.setItem(THEME_KEY, JSON.stringify(settings));
       };
 
       const applySettings = (settings) => {
@@ -132,7 +155,32 @@
           applySettings(settings);
         });
       }
+
+      const copyBtn = document.getElementById('copy-share-url-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', async () => {
+          const roomName = '<%= roomName || "" %>';
+          const shareUrl = `${window.location.origin}/list?room=${encodeURIComponent(roomName)}`;
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            copyBtn.innerHTML = '<span>✓ リンクをコピーしました！</span>';
+            setTimeout(() => {
+              copyBtn.innerHTML = '<span>🔗 共有リンクをコピー</span>';
+            }, 2000);
+          } catch (err) {
+            prompt('以下の共有URLをコピーしてください:', shareUrl);
+          }
+        });
+      }
     })();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
   </script>
 </body>
 </html>

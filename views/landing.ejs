@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#4f9cff">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
   <div class="landing-page">
@@ -12,9 +18,19 @@
       <div class="hero-mark">🛒</div>
       <p class="eyebrow">Daily helper</p>
       <h1>買い物リスト</h1>
-      <p class="landing-copy">今日買うものを、すぐにメモして忘れないようにしましょう。</p>
+      <p class="landing-copy">今日買うものを、すぐにメモして忘れないようにしましょう。家族と合言葉でリアルタイム共有も可能です。</p>
       <a class="primary-btn" href="/list">始める</a>
     </div>
   </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch((err) => {
+          console.warn('SW registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
