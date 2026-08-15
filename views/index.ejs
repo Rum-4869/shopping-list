@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>買い物リスト</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>📝 わたしの買い物リスト</h1>
+
+    <!-- アイテムを追加するフォーム -->
+    <form class="add-form" action="/add" method="post">
+      <!-- name="itemName" が、app.jsの req.body.itemName と連動します -->
+      <input type="text" name="itemName" placeholder="買うものを入力" required>
+      <button class="add-btn" type="submit">追加</button>
+    </form>
+
+    <!-- リスト一覧と削除ボタン -->
+    <ul>
+      <% items.forEach((item, index) => { %>
+        <li>
+          <%= item %>
+          <!-- 削除用のフォーム -->
+          <form class="delete-form" action="/delete/<%= index %>" method="post">
+            <button class="delete-btn" type="submit">削除</button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  </div>
+</body>
+</html>
