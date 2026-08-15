@@ -31,6 +31,7 @@ html, body {
   background:
     radial-gradient(circle at top, #f9fcff 0%, #edf5ff 30%, #dfeeff 100%);
   color: var(--text);
+  overflow: hidden;
 }
 
 body {
@@ -95,8 +96,11 @@ body {
   box-shadow: 0 26px 42px rgba(57, 86, 131, 0.15), inset 0 1px 0 rgba(255,255,255,0.8);
   padding: 18px 16px 86px;
   min-height: 540px;
+  max-height: calc(100vh - 36px);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .container::after {
@@ -344,24 +348,62 @@ input[type="text"]:focus {
 
 .item-list {
   list-style: none;
-  padding: 0;
+  padding: 0 4px 0 0;
   margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(100vh - 260px);
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(132, 151, 179, 0.7) transparent;
+}
+
+.item-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.item-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.item-list::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(126, 154, 196, 0.9), rgba(70, 114, 175, 0.8));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .shopping-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(180deg, #ffffff, #f4f9ff);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 12px 12px 12px 14px;
-  margin-bottom: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
+  border: 1px solid rgba(159, 177, 204, 0.45);
+  border-radius: 20px;
+  padding: 14px 12px 14px 14px;
+  margin-bottom: 12px;
   font-size: 1rem;
   animation: slideIn 0.2s ease;
   transition: all 0.2s ease;
-  box-shadow: 0 8px 18px rgba(103, 128, 166, 0.08);
+  box-shadow: 0 8px 20px rgba(98, 120, 164, 0.1), inset 0 1px 0 rgba(255,255,255,0.6);
   cursor: grab;
+  min-height: 64px;
+}
+
+.shopping-item::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(79, 156, 255, 0.8), rgba(54, 128, 225, 0.45));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.shopping-item:hover::before,
+.shopping-item:focus-within::before {
+  opacity: 1;
 }
 
 .shopping-item.dragging {
@@ -375,6 +417,11 @@ input[type="text"]:focus {
   background: linear-gradient(180deg, #edf6ff, #f4f9ff);
   box-shadow: 0 0 0 2px rgba(79, 156, 255, 0.12);
   transform: translateY(-1px);
+}
+
+.shopping-item .item-name {
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .shopping-item.drag-over-top {
@@ -515,6 +562,12 @@ body.dark-mode .landing-card {
   border-color: rgba(148, 163, 184, 0.18);
   color: #eaf3ff;
   box-shadow: 0 24px 38px rgba(2, 6, 23, 0.52), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+body.dark-mode .shopping-item {
+  background: linear-gradient(180deg, rgba(25, 34, 48, 0.96), rgba(18, 27, 38, 0.96));
+  border-color: rgba(148, 163, 184, 0.18);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, 0.32), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 body.dark-mode .status-bar,

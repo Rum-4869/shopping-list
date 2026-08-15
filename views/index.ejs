@@ -137,6 +137,7 @@
           orderedItems.forEach((item) => fragment.appendChild(item));
           list.innerHTML = '';
           list.appendChild(fragment);
+          list.scrollTop = list.scrollHeight;
         } catch (error) {
           console.warn('ローカルストレージの読み込みに失敗しました', error);
         }
@@ -259,6 +260,7 @@
           list.appendChild(itemElement);
           form.reset();
           syncStorage();
+          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
         } catch (error) {
           form.submit();
         }
