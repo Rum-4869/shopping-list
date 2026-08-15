@@ -5,22 +5,38 @@ let pool = null;
 
 function getPool() {
   if (!pool) {
-    const sslConfig =
-      process.env.TIDB_ENABLE_SSL === 'true' || process.env.TIDB_ENABLE_SSL === true
-        ? { minVersion: 'TLSv1.2', rejectUnauthorized: true }
-        : undefined;
+    if (!process.env.TIDB_HOST && !process.env.DATABASE_URL) {
+      throw new Error(
+        '【環境変数が未設定です】TIDB_HOST が見つかりません。デプロイ先（Render等）のダッシュボードで Environment Variables を設定してください。'
+      );
+    }
 
-    pool = mysql.createPool({
-      host: process.env.TIDB_HOST,
-      port: Number(process.env.TIDB_PORT) || 4000,
-      user: process.env.TIDB_USER,
-      password: process.env.TIDB_PASSWORD,
-      database: process.env.TIDB_DATABASE || 'test',
-      ssl: sslConfig,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
+    const sslConfig =
+      process.env.TIDB_ENABLE_SSL === 'false'
+        ? undefined
+        : { minVersion: 'TLSv1.2', rejectUnauthorized: true };
+
+    if (process.env.DATABASE_URL) {
+      pool = mysql.createPool({
+        uri: process.env.DATABASE_URL,
+        ssl: sslConfig,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+      });
+    } else {
+      pool = mysql.createPool({
+        host: process.env.TIDB_HOST,
+        port: Number(process.env.TIDB_PORT) || 4000,
+        user: process.env.TIDB_USER,
+        password: process.env.TIDB_PASSWORD,
+        database: process.env.TIDB_DATABASE || 'test',
+        ssl: sslConfig,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+      });
+    }
   }
   return pool;
 }
