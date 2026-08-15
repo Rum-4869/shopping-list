@@ -358,7 +358,178 @@ h1 {
   background: #dfeeff;
 }
 
+/* よく買うものクイック追加チップ */
+.quick-chips-wrapper {
+  margin-bottom: 12px;
+}
 
+.quick-chips-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.quick-chips-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.edit-presets-btn {
+  background: none;
+  border: none;
+  font-size: 0.72rem;
+  color: var(--primary-dark);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.edit-presets-btn:hover {
+  background: rgba(79, 156, 255, 0.1);
+}
+
+.quick-chips-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  align-items: center;
+}
+
+.quick-chips-list::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-wrapper {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px solid rgba(79, 156, 255, 0.25);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(50, 80, 120, 0.06);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.chip-btn:hover {
+  background: #f0f7ff;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.chip-btn:active {
+  transform: scale(0.94);
+  background: #e1efff;
+}
+
+.chip-delete-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+  padding: 0;
+  line-height: 1;
+}
+
+.add-preset-chip-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: 1px dashed var(--primary);
+  border-radius: 999px;
+  background: rgba(79, 156, 255, 0.06);
+  color: var(--primary-dark);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.add-preset-chip-btn:hover {
+  background: rgba(79, 156, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+/* 編集モード中のスタイル */
+.quick-chips-wrapper.is-editing .chip-delete-btn {
+  display: flex;
+  animation: popIn 0.2s ease;
+}
+
+.quick-chips-wrapper.is-editing .add-preset-chip-btn {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.quick-chips-wrapper.is-editing .chip-btn {
+  animation: chipWiggle 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes chipWiggle {
+  0% { transform: rotate(-1.5deg); }
+  100% { transform: rotate(1.5deg); }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); opacity: 0; }
+  80% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+.shopping-item.highlight-item {
+  animation: highlightGlow 1.2s ease;
+}
+
+@keyframes highlightGlow {
+  0% {
+    box-shadow: 0 0 0 3px rgba(79, 156, 255, 0.6);
+    transform: scale(1.02);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(79, 156, 255, 0.4);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
 
 .add-form {
   display: flex;
@@ -802,6 +973,37 @@ body.dark-mode .share-copy-btn {
   background: rgba(79, 156, 255, 0.15);
   border-color: rgba(79, 156, 255, 0.3);
   color: #c9e0ff;
+}
+
+body.dark-mode .chip-btn {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+body.dark-mode .chip-btn:hover {
+  background: rgba(51, 65, 85, 0.95);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+body.dark-mode .chip-btn:active {
+  background: rgba(79, 156, 255, 0.25);
+}
+
+body.dark-mode .add-preset-chip-btn {
+  background: rgba(79, 156, 255, 0.12);
+  border-color: rgba(79, 156, 255, 0.5);
+  color: #93c5fd;
+}
+
+body.dark-mode .edit-presets-btn {
+  color: #93c5fd;
+}
+
+body.dark-mode .chip-delete-btn {
+  border-color: #1e293b;
 }
 
 @keyframes popupAdd {

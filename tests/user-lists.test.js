@@ -206,4 +206,48 @@ test('Room code sharing allows multiple users to share same list and note', asyn
   assert.match(listResB.text, /共有中/);
 });
 
+test('Presets (common items) can be loaded, added, and deleted per user', async () => {
+  const testUser = `user-preset-${Date.now()}`;
+
+  // 1. 初期プリセット取得（7件）
+  const initialPresets = await db.getPresetsForUser(testUser);
+  assert.equal(initialPresets.length, 7);
+
+  // 2. プリセット新規追加（納豆）
+  const addRes = await request(app)
+    .post('/presets/add')
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ name: '納豆' });
+
+  assert.equal(addRes.status, 200);
+  assert.equal(addRes.body.ok, true);
+  assert.equal(addRes.body.preset.name, '納豆');
+  assert.equal(addRes.body.preset.icon, '🥢');
+  const newPresetId = addRes.body.preset.id;
+
+  // 3. リスト画面に納豆プリセットが表示されていること
+  const listRes = await request(app)
+    .get('/list')
+    .set('Cookie', `shopping_user_id=${testUser}`);
+
+  assert.match(listRes.text, /納豆/);
+
+  // 4. プリセット削除
+  const delRes = await request(app)
+    .post(`/presets/delete/${newPresetId}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json');
+
+  assert.equal(delRes.status, 200);
+  assert.equal(delRes.body.ok, true);
+
+  // 5. 削除確認
+  const afterPresets = await db.getPresetsForUser(testUser);
+  const exists = afterPresets.some((p) => p.id === newPresetId);
+  assert.equal(exists, false);
+});
+
+
 

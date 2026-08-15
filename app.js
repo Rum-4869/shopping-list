@@ -94,8 +94,10 @@ app.get('/', (req, res) => {
 app.get('/list', async (req, res, next) => {
   try {
     const items = await db.loadItemsForUser(req.userId);
+    const presets = await db.getPresetsForUser(req.userId);
     res.render('index.ejs', {
       items,
+      presets,
       activeTab: 'list',
       isShared: req.isShared,
       roomName: req.roomName
@@ -104,6 +106,48 @@ app.get('/list', async (req, res, next) => {
     next(error);
   }
 });
+
+// よく買うもの（プリセット）追加（POST）
+app.post('/presets/add', async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const name = req.body.name;
+    const icon = req.body.icon || null;
+    const result = await db.addPreset(userId, name, icon);
+
+    if (!result.ok) {
+      if (isJsonRequest(req)) {
+        return res.status(result.status || 400).json({ ok: false, message: result.message });
+      }
+      return res.redirect('/list');
+    }
+
+    if (isJsonRequest(req)) {
+      return res.json({ ok: true, preset: result.preset });
+    }
+
+    res.redirect('/list');
+  } catch (error) {
+    next(error);
+  }
+});
+
+// よく買うもの（プリセット）削除（POST）
+app.post('/presets/delete/:id', async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const result = await db.deletePreset(userId, req.params.id);
+
+    if (isJsonRequest(req)) {
+      return res.json({ ok: true, deleted: result.deleted, id: result.id });
+    }
+
+    res.redirect('/list');
+  } catch (error) {
+    next(error);
+  }
+});
+
 
 // メモ画面（GET）
 app.get('/notes', async (req, res, next) => {

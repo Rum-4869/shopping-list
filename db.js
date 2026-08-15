@@ -42,6 +42,15 @@ function getPool() {
 }
 
 const DEFAULT_ITEMS = ['牛乳', '卵', '食パン', 'お肉'];
+const DEFAULT_PRESETS = [
+  { name: '牛乳', icon: '🥛' },
+  { name: '卵', icon: '🥚' },
+  { name: '食パン', icon: '🍞' },
+  { name: '玉ねぎ', icon: '🧅' },
+  { name: 'お肉', icon: '🥩' },
+  { name: 'バナナ', icon: '🍌' },
+  { name: '日用品', icon: '🧻' }
+];
 
 async function initDatabase() {
   const currentPool = getPool();
@@ -76,6 +85,19 @@ async function initDatabase() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  // よく買うもの（プリセット）テーブル
+  await currentPool.query(`
+    CREATE TABLE IF NOT EXISTS shopping_presets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      icon VARCHAR(16) DEFAULT '🛒',
+      display_order INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
 }
 
 async function ensureUserInitialized(userId) {
@@ -99,8 +121,17 @@ async function ensureUserInitialized(userId) {
         [userId, DEFAULT_ITEMS[i], i + 1]
       );
     }
+
+    // 初回デフォルトプリセット（よく買うもの）を投入
+    for (let i = 0; i < DEFAULT_PRESETS.length; i++) {
+      await currentPool.query(
+        'INSERT INTO shopping_presets (user_id, name, icon, display_order) VALUES (?, ?, ?, ?)',
+        [userId, DEFAULT_PRESETS[i].name, DEFAULT_PRESETS[i].icon, i + 1]
+      );
+    }
   }
 }
+
 
 async function loadItemsForUser(userId) {
   const currentPool = getPool();
@@ -265,6 +296,106 @@ async function saveNoteForUser(userId, content) {
   return { ok: true };
 }
 
+function detectIcon(name) {
+  const text = String(name || '').toLowerCase();
+  if (text.includes('牛乳') || text.includes('ミルク')) return '🥛';
+  if (text.includes('卵') || text.includes('たまご')) return '🥚';
+  if (text.includes('パン')) return '🍞';
+  if (text.includes('肉') || text.includes('チキン') || text.includes('ポーク') || text.includes('ビーフ') || text.includes('牛') || text.includes('豚') || text.includes('鶏')) return '🥩';
+  if (text.includes('魚') || text.includes('サーモン') || text.includes('刺身')) return '🐟';
+  if (text.includes('野菜') || text.includes('サラダ') || text.includes('キャベツ') || text.includes('レタス')) return '🥬';
+  if (text.includes('玉ねぎ') || text.includes('たまねぎ')) return '🧅';
+  if (text.includes('人参') || text.includes('にんじん')) return '🥕';
+  if (text.includes('じゃがいも') || text.includes('ポテト')) return '🥔';
+  if (text.includes('バナナ')) return '🍌';
+  if (text.includes('りんご') || text.includes('リンゴ')) return '🍎';
+  if (text.includes('果物') || text.includes('フルーツ') || text.includes('みかん') || text.includes('オレンジ')) return '🍊';
+  if (text.includes('米') || text.includes('ごはん')) return '🍚';
+  if (text.includes('麺') || text.includes('パスタ') || text.includes('うどん') || text.includes('ラーメン')) return '🍜';
+  if (text.includes('ビール') || text.includes('酒') || text.includes('ワイン')) return '🍺';
+  if (text.includes('水') || text.includes('お茶') || text.includes('ジュース') || text.includes('コーヒー')) return '☕';
+  if (text.includes('チーズ') || text.includes('バター') || text.includes('ヨーグルト')) return '🧀';
+  if (text.includes('ペーパー') || text.includes('ティッシュ') || text.includes('洗剤') || text.includes('日用品')) return '🧻';
+  if (text.includes('お菓子') || text.includes('チョコ') || text.includes('アイス') || text.includes('スイーツ')) return '🍫';
+  if (text.includes('納豆') || text.includes('豆腐')) return '🥢';
+  return '🛒';
+}
+
+async function getPresetsForUser(userId) {
+  const currentPool = getPool();
+  await ensureUserInitialized(userId);
+
+  const [rows] = await currentPool.query(
+    'SELECT id, name, icon, display_order FROM shopping_presets WHERE user_id = ? ORDER BY display_order ASC, id ASC',
+    [userId]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    icon: row.icon || '🛒'
+  }));
+}
+
+async function addPreset(userId, name, customIcon = null) {
+  const currentPool = getPool();
+  await ensureUserInitialized(userId);
+
+  const trimmed = String(name || '').trim();
+  if (!trimmed || trimmed.length > 30) {
+    return { ok: false, status: 400, message: 'invalid preset name' };
+  }
+
+  // 重複チェック
+  const [existing] = await currentPool.query(
+    'SELECT id FROM shopping_presets WHERE user_id = ? AND LOWER(name) = LOWER(?) LIMIT 1',
+    [userId, trimmed]
+  );
+
+  if (existing.length > 0) {
+    return { ok: false, status: 409, message: 'duplicate preset' };
+  }
+
+  const icon = customIcon || detectIcon(trimmed);
+
+  const [orderResult] = await currentPool.query(
+    'SELECT COALESCE(MAX(display_order), 0) AS max_order FROM shopping_presets WHERE user_id = ?',
+    [userId]
+  );
+  const nextOrder = (orderResult[0]?.max_order || 0) + 1;
+
+  const [insertResult] = await currentPool.query(
+    'INSERT INTO shopping_presets (user_id, name, icon, display_order) VALUES (?, ?, ?, ?)',
+    [userId, trimmed, icon, nextOrder]
+  );
+
+  return {
+    ok: true,
+    preset: {
+      id: insertResult.insertId,
+      name: trimmed,
+      icon
+    }
+  };
+}
+
+async function deletePreset(userId, presetId) {
+  const currentPool = getPool();
+  const id = Number(presetId);
+  if (!id) return { ok: false, status: 404, message: 'invalid preset id' };
+
+  const [result] = await currentPool.query(
+    'DELETE FROM shopping_presets WHERE user_id = ? AND id = ?',
+    [userId, id]
+  );
+
+  return {
+    ok: true,
+    deleted: result.affectedRows > 0,
+    id
+  };
+}
+
 async function closePool() {
   if (pool) {
     await pool.end();
@@ -283,8 +414,12 @@ module.exports = {
   deleteCompletedItems,
   getNoteForUser,
   saveNoteForUser,
+  getPresetsForUser,
+  addPreset,
+  deletePreset,
   closePool
 };
+
 
 
 

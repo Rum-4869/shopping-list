@@ -38,6 +38,25 @@
       </div>
     <% } %>
 
+    <!-- よく買うものクイック追加チップ -->
+    <div class="quick-chips-wrapper" id="quick-chips-wrapper">
+      <div class="quick-chips-header">
+        <span class="quick-chips-title">よく買うもの</span>
+        <button id="toggle-edit-presets-btn" class="edit-presets-btn" type="button">編集</button>
+      </div>
+      <div class="quick-chips-list" id="quick-chips-list">
+        <% (presets || []).forEach((p) => { %>
+          <div class="chip-wrapper" data-preset-id="<%= p.id %>">
+            <button class="chip-btn" type="button" data-item="<%= p.name %>">
+              <span><%= p.icon %></span> <%= p.name %>
+            </button>
+            <button class="chip-delete-btn" type="button" data-preset-id="<%= p.id %>" aria-label="<%= p.name %>を削除">×</button>
+          </div>
+        <% }) %>
+        <button id="add-preset-btn" class="add-preset-chip-btn" type="button">＋ 追加</button>
+      </div>
+    </div>
+
 
     <form class="add-form" action="/add" method="post">
       <input
@@ -308,6 +327,149 @@
           form.submit();
         }
       });
+
+      const addItemDirectly = async (name) => {
+        const itemName = String(name || '').trim();
+        if (!itemName) return;
+
+        // すでにリストにある場合はスクロールしてハイライト表示
+        const existingItem = [...document.querySelectorAll('.shopping-item')].find(
+          (el) => (el.dataset.name || '').toLowerCase() === itemName.toLowerCase()
+        );
+
+        if (existingItem) {
+          existingItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          existingItem.classList.add('highlight-item');
+          setTimeout(() => existingItem.classList.remove('highlight-item'), 1200);
+          return;
+        }
+
+        try {
+          const response = await fetch('/add', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'Accept': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({ itemName }).toString()
+          });
+
+          if (!response.ok) {
+            throw new Error('quick add failed');
+          }
+
+          const data = await response.json();
+          if (!data || !data.ok || !data.item) {
+            throw new Error('invalid response');
+          }
+
+          const itemElement = createItemElement(data.item);
+          attachItemEvents(itemElement);
+          list.appendChild(itemElement);
+          syncStorage();
+          window.AppSound && window.AppSound.play('add');
+          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+        } catch (error) {
+          console.warn('クイック追加に失敗しました', error);
+        }
+      };
+
+      // プリセット（よく買うもの）の編集モード
+      const chipsWrapper = document.getElementById('quick-chips-wrapper');
+      const toggleEditPresetsBtn = document.getElementById('toggle-edit-presets-btn');
+      const addPresetBtn = document.getElementById('add-preset-btn');
+      const chipsList = document.getElementById('quick-chips-list');
+
+      let isEditingPresets = false;
+
+      if (toggleEditPresetsBtn && chipsWrapper) {
+        toggleEditPresetsBtn.addEventListener('click', () => {
+          isEditingPresets = !isEditingPresets;
+          chipsWrapper.classList.toggle('is-editing', isEditingPresets);
+          toggleEditPresetsBtn.textContent = isEditingPresets ? '完了' : '編集';
+        });
+      }
+
+      // プリセット（よく買うもの）の追加
+      if (addPresetBtn) {
+        addPresetBtn.addEventListener('click', async () => {
+          const name = prompt('よく買うものの名前を入力してください（例: 納豆、ヨーグルトなど）:');
+          if (!name || !name.trim()) return;
+
+          try {
+            const response = await fetch('/presets/add', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: new URLSearchParams({ name: name.trim() }).toString()
+            });
+
+            if (!response.ok) {
+              const err = await response.json().catch(() => ({}));
+              alert(err.message || '追加に失敗しました');
+              return;
+            }
+
+            const data = await response.json();
+            if (data && data.ok && data.preset) {
+              const wrapper = document.createElement('div');
+              wrapper.className = 'chip-wrapper';
+              wrapper.dataset.presetId = String(data.preset.id);
+              wrapper.innerHTML = `
+                <button class="chip-btn" type="button" data-item="${data.preset.name}">
+                  <span>${data.preset.icon}</span> ${data.preset.name}
+                </button>
+                <button class="chip-delete-btn" type="button" data-preset-id="${data.preset.id}" aria-label="${data.preset.name}を削除">×</button>
+              `;
+
+              chipsList.insertBefore(wrapper, addPresetBtn);
+              window.AppSound && window.AppSound.play('add');
+            }
+          } catch (e) {
+            console.error('プリセット追加エラー:', e);
+          }
+        });
+      }
+
+      // チップリスト内のクリックイベント（委任：追加 or 削除）
+      if (chipsList) {
+        chipsList.addEventListener('click', async (event) => {
+          const deleteBtn = event.target.closest('.chip-delete-btn');
+          if (deleteBtn) {
+            const presetId = deleteBtn.dataset.presetId;
+            const chipWrapper = deleteBtn.closest('.chip-wrapper');
+            if (!presetId || !chipWrapper) return;
+
+            try {
+              const response = await fetch(`/presets/delete/${presetId}`, {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/json',
+                  'X-Requested-With': 'XMLHttpRequest'
+                }
+              });
+
+              if (response.ok) {
+                chipWrapper.remove();
+                window.AppSound && window.AppSound.play('delete');
+              }
+            } catch (e) {
+              console.error('プリセット削除エラー:', e);
+            }
+            return;
+          }
+
+          const chipBtn = event.target.closest('.chip-btn');
+          if (chipBtn && !isEditingPresets) {
+            const item = chipBtn.dataset.item;
+            if (item) addItemDirectly(item);
+          }
+        });
+      }
 
       document.addEventListener('submit', async (event) => {
         const form = event.target;
