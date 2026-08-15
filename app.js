@@ -267,6 +267,27 @@ app.post('/toggle/:id', async (req, res, next) => {
   }
 });
 
+// 数量の更新（POST）
+app.post('/update-quantity/:id', async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const delta = Number(req.body.delta) || 0;
+    const result = await db.updateQuantity(userId, req.params.id, delta);
+
+    if (result.ok) {
+      if (isJsonRequest(req)) {
+        return res.json({ ok: true, item: result.item });
+      }
+    } else if (isJsonRequest(req)) {
+      return res.status(result.status || 404).json({ ok: false, message: result.message });
+    }
+
+    res.redirect('/list');
+  } catch (error) {
+    next(error);
+  }
+});
+
 // 並び替えの保存（POST）
 app.post('/reorder', async (req, res, next) => {
   try {

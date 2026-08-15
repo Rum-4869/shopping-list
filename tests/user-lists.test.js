@@ -249,5 +249,51 @@ test('Presets (common items) can be loaded, added, and deleted per user', async 
   assert.equal(exists, false);
 });
 
+test('Quantity updates correctly and respects minimum of 1', async () => {
+  const testUser = `user-qty-${Date.now()}`;
 
+  // 1. アイテム追加
+  const addRes = await request(app)
+    .post('/add')
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ itemName: 'みかん' });
 
+  assert.equal(addRes.status, 200);
+  const itemId = addRes.body.item.id;
+  assert.equal(addRes.body.item.quantity, 1);
+
+  // 2. 数量を+1
+  const plusRes = await request(app)
+    .post(`/update-quantity/${itemId}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ delta: 1 });
+
+  assert.equal(plusRes.status, 200);
+  assert.equal(plusRes.body.item.quantity, 2);
+
+  // 3. 数量を-1
+  const minusRes = await request(app)
+    .post(`/update-quantity/${itemId}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ delta: -1 });
+
+  assert.equal(minusRes.status, 200);
+  assert.equal(minusRes.body.item.quantity, 1);
+
+  // 4. さらに数量を-1（1未満にならないこと）
+  const minusAgainRes = await request(app)
+    .post(`/update-quantity/${itemId}`)
+    .set('Cookie', `shopping_user_id=${testUser}`)
+    .set('Accept', 'application/json')
+    .type('form')
+    .send({ delta: -1 });
+
+  assert.equal(minusAgainRes.status, 200);
+  assert.equal(minusAgainRes.body.item.quantity, 1);
+});

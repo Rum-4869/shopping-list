@@ -70,12 +70,21 @@ async function initDatabase() {
       user_id VARCHAR(64) NOT NULL,
       name VARCHAR(255) NOT NULL,
       done TINYINT(1) DEFAULT 0,
+      quantity INT DEFAULT 1,
       display_order INT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_user_id (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
+  try {
+    await currentPool.query('ALTER TABLE shopping_items ADD COLUMN quantity INT DEFAULT 1 AFTER done');
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') {
+      console.error('Failed to add quantity column:', err);
+    }
+  }
 
   // メモ帳テーブル
   await currentPool.query(`
@@ -138,14 +147,15 @@ async function loadItemsForUser(userId) {
   await ensureUserInitialized(userId);
 
   const [rows] = await currentPool.query(
-    'SELECT id, name, done, display_order FROM shopping_items WHERE user_id = ? ORDER BY display_order ASC, id ASC',
+    'SELECT id, name, done, quantity, display_order FROM shopping_items WHERE user_id = ? ORDER BY display_order ASC, id ASC',
     [userId]
   );
 
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    done: Boolean(row.done)
+    done: Boolean(row.done),
+    quantity: row.quantity || 1
   }));
 }
 
@@ -183,7 +193,8 @@ async function addItem(userId, name) {
   const newItem = {
     id: insertResult.insertId,
     name: trimmedName,
-    done: false
+    done: false,
+    quantity: 1
   };
 
   return { ok: true, item: newItem };
@@ -215,7 +226,42 @@ async function toggleItem(userId, itemId) {
     item: {
       id: rows[0].id,
       name: rows[0].name,
-      done: Boolean(newDone)
+      done: Boolean(newDone),
+      quantity: rows[0].quantity || 1
+    }
+  };
+}
+
+async function updateQuantity(userId, itemId, delta) {
+  const currentPool = getPool();
+  const id = Number(itemId);
+  const d = Number(delta);
+  if (!id) return { ok: false, status: 404, message: 'invalid item id' };
+
+  const [rows] = await currentPool.query(
+    'SELECT id, name, done, quantity FROM shopping_items WHERE user_id = ? AND id = ? LIMIT 1',
+    [userId, id]
+  );
+
+  if (rows.length === 0) {
+    return { ok: false, status: 404, message: 'item not found' };
+  }
+
+  let newQuantity = (rows[0].quantity || 1) + d;
+  if (newQuantity < 1) newQuantity = 1;
+
+  await currentPool.query(
+    'UPDATE shopping_items SET quantity = ? WHERE user_id = ? AND id = ?',
+    [newQuantity, userId, id]
+  );
+
+  return {
+    ok: true,
+    item: {
+      id: rows[0].id,
+      name: rows[0].name,
+      done: Boolean(rows[0].done),
+      quantity: newQuantity
     }
   };
 }
@@ -409,6 +455,7 @@ module.exports = {
   loadItemsForUser,
   addItem,
   toggleItem,
+  updateQuantity,
   reorderItems,
   deleteItem,
   deleteCompletedItems,
