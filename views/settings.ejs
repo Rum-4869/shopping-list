@@ -11,13 +11,18 @@
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>
+    try {
+      const s = JSON.parse(localStorage.getItem('shopping-settings-v1') || '{}');
+      if (s.theme === 'dark') document.documentElement.classList.add('dark-mode');
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <div class="container">
     <header class="app-header">
       <div>
         <p class="eyebrow">設定</p>
-        <h1>設定</h1>
       </div>
     </header>
 
@@ -90,13 +95,13 @@
         <circle cx="12" cy="12" r="3.5"/>
       </svg>
     </a>
-  </nav>
-
+  <script src="/sound.js"></script>
+  <script src="/notify.js"></script>
   <script>
     (() => {
       const THEME_KEY = 'shopping-settings-v1';
       const defaults = {
-        notifications: true,
+        notifications: false,
         sound: false,
         theme: 'light'
       };
@@ -139,13 +144,42 @@
       applySettings(settings);
 
       document.querySelectorAll('[data-setting]').forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
           const key = button.dataset.setting;
-          settings[key] = !settings[key];
+          const nextState = !settings[key];
+
+          if (key === 'sound' && nextState) {
+            settings[key] = true;
+            persistSettings(settings);
+            applySettings(settings);
+            window.AppSound && window.AppSound.play('test', true);
+            return;
+          }
+
+          if (key === 'notifications' && nextState) {
+            if (window.AppNotify) {
+              const granted = await window.AppNotify.requestPermission();
+              if (granted) {
+                settings[key] = true;
+                persistSettings(settings);
+                applySettings(settings);
+                window.AppNotify.send('🛒 買い物リスト', '通知が有効になりました！');
+              } else {
+                alert('ブラウザの通知がブロックされています。ブラウザの設定で通知を許可してください。');
+                settings[key] = false;
+                persistSettings(settings);
+                applySettings(settings);
+              }
+            }
+            return;
+          }
+
+          settings[key] = nextState;
           persistSettings(settings);
           applySettings(settings);
         });
       });
+
 
       const themeToggle = document.getElementById('theme-toggle');
       if (themeToggle) {

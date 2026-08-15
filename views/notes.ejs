@@ -11,13 +11,18 @@
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>
+    try {
+      const s = JSON.parse(localStorage.getItem('shopping-settings-v1') || '{}');
+      if (s.theme === 'dark') document.documentElement.classList.add('dark-mode');
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <div class="container">
     <header class="app-header">
       <div>
         <p class="eyebrow"><%= isShared ? '共有メモ' : 'メモ' %></p>
-        <h1>メモ帳</h1>
       </div>
     </header>
 
@@ -66,6 +71,7 @@
     </a>
   </nav>
 
+  <script src="/sound.js"></script>
   <script>
     (() => {
       const THEME_KEY = 'shopping-settings-v1';
@@ -101,6 +107,7 @@
 
           if (response.ok) {
             setStatus('保存済み ✓', true, false);
+            window.AppSound && window.AppSound.play('save');
           } else {
             setStatus('保存失敗', false, false);
           }
@@ -109,6 +116,7 @@
           setStatus('保存失敗', false, false);
         }
       };
+
 
       textarea.addEventListener('input', () => {
         setStatus('入力中… (未保存)', false, false);

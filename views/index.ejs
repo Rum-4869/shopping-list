@@ -11,13 +11,18 @@
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <script>
+    try {
+      const s = JSON.parse(localStorage.getItem('shopping-settings-v1') || '{}');
+      if (s.theme === 'dark') document.documentElement.classList.add('dark-mode');
+    } catch(e) {}
+  </script>
 </head>
 <body>
   <div class="container">
     <header class="app-header">
       <div>
         <p class="eyebrow"><%= isShared ? '共有リスト' : '今日の買い物' %></p>
-        <h1>買い物リスト</h1>
       </div>
     </header>
 
@@ -80,31 +85,15 @@
     </ul>
   </div>
 
+  <script src="/sound.js"></script>
+  <script src="/notify.js"></script>
   <script>
     (() => {
-      const getCurrentUserId = () => {
-        const cookies = Object.fromEntries(
-          document.cookie
-            .split(';')
-            .map((cookie) => cookie.trim())
-            .filter(Boolean)
-            .map((cookie) => {
-              const index = cookie.indexOf('=');
-              const key = index >= 0 ? cookie.slice(0, index) : cookie;
-              const value = index >= 0 ? decodeURIComponent(cookie.slice(index + 1)) : '';
-              return [key, value];
-            })
-        );
-
-        return cookies.shopping_user_id || 'guest';
-      };
-
-      const THEME_KEY = `shopping-settings-v1-${getCurrentUserId()}`;
+      const THEME_KEY = 'shopping-settings-v1';
       const settings = JSON.parse(localStorage.getItem(THEME_KEY) || '{}');
       const theme = settings.theme === 'dark' ? 'dark' : 'light';
       document.body.classList.toggle('dark-mode', theme === 'dark');
 
-      const KEY = `shopping-list-items-v1-${getCurrentUserId()}`;
       const input = document.querySelector('input[name="itemName"]');
       const form = document.querySelector('.add-form');
       const list = document.querySelector('.item-list');
@@ -163,6 +152,7 @@
             setTimeout(() => {
               completedItems.forEach((item) => item.remove());
               syncStorage();
+              window.AppSound && window.AppSound.play('delete');
             }, 250);
           } catch (error) {
             console.error('一括削除に失敗しました', error);
@@ -312,6 +302,7 @@
           list.appendChild(itemElement);
           form.reset();
           syncStorage();
+          window.AppSound && window.AppSound.play('add');
           list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
         } catch (error) {
           form.submit();
@@ -349,6 +340,16 @@
               checkmark.textContent = done ? '✓' : '';
             }
             syncStorage();
+
+            const allItems = [...document.querySelectorAll('.shopping-item:not(.removing)')];
+            const remaining = allItems.filter((el) => !el.classList.contains('done')).length;
+
+            if (done && remaining === 0 && allItems.length > 0) {
+              window.AppSound && window.AppSound.play('all-done');
+              window.AppNotify && window.AppNotify.send('🎉 今日の買い物完了！', 'すべてのアイテムを買い終わりました！');
+            } else {
+              window.AppSound && window.AppSound.play(done ? 'check' : 'uncheck');
+            }
           } catch (error) {
             form.submit();
           }
@@ -373,6 +374,7 @@
 
             item.remove();
             syncStorage();
+            window.AppSound && window.AppSound.play('delete');
           } catch (error) {
             form.submit();
           }
