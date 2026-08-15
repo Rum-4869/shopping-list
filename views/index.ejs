@@ -173,13 +173,6 @@
 
 
       const syncStorage = () => {
-        const items = [...document.querySelectorAll('.shopping-item')].map((item) => ({
-          id: Number(item.dataset.id),
-          name: item.dataset.name || item.querySelector('.item-name')?.textContent?.trim() || '',
-          done: item.classList.contains('done')
-        }));
-
-        localStorage.setItem(KEY, JSON.stringify(items));
         updateBadge();
       };
 
@@ -199,47 +192,6 @@
           syncStorage();
         } catch (error) {
           console.warn('並び替えの保存に失敗しました', error);
-        }
-      };
-
-      const restoreStorage = () => {
-        try {
-          const saved = JSON.parse(localStorage.getItem(KEY) || '[]');
-          if (!Array.isArray(saved) || saved.length === 0) return;
-
-          const items = [...document.querySelectorAll('.shopping-item')];
-          const map = new Map(items.map((item) => [Number(item.dataset.id), item]));
-
-          saved.forEach((entry) => {
-            const target = map.get(Number(entry.id));
-            if (!target || !entry || !entry.name) return;
-
-            target.dataset.name = entry.name;
-            const nameEl = target.querySelector('.item-name');
-            if (nameEl) nameEl.textContent = entry.name;
-
-            const isDone = Boolean(entry.done);
-            target.classList.toggle('done', isDone);
-
-            const checkBtn = target.querySelector('.check-btn');
-            const checkmark = target.querySelector('.checkmark');
-            if (checkBtn && checkmark) {
-              checkBtn.setAttribute('aria-label', isDone ? '未完了に戻す' : '完了にする');
-              checkmark.textContent = isDone ? '✓' : '';
-            }
-          });
-
-          const orderedItems = saved
-            .map((entry) => map.get(Number(entry.id)))
-            .filter(Boolean);
-
-          const fragment = document.createDocumentFragment();
-          orderedItems.forEach((item) => fragment.appendChild(item));
-          list.innerHTML = '';
-          list.appendChild(fragment);
-          list.scrollTop = list.scrollHeight;
-        } catch (error) {
-          console.warn('ローカルストレージの読み込みに失敗しました', error);
         }
       };
 
@@ -490,7 +442,6 @@
         });
       });
 
-      restoreStorage();
       syncStorage();
     })();
   </script>

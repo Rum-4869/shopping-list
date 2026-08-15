@@ -1,9 +1,5 @@
-const CACHE_NAME = 'shopping-list-cache-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/list',
-  '/notes',
-  '/settings',
+const CACHE_NAME = 'shopping-list-static-v2';
+const STATIC_ASSETS = [
   '/styles.css',
   '/manifest.json',
   '/icons/icon.svg'
@@ -12,9 +8,7 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
-        console.warn('キャッシュの事前読み込みスキップ:', err);
-      });
+      return cache.addAll(STATIC_ASSETS);
     })
   );
   self.skipWaiting();
@@ -36,26 +30,27 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // POSTリクエストやAPIはキャッシュせずそのままフェッチ
-  if (event.request.method !== 'GET') {
-    return;
-  }
+  // GETかつ静的アセット（css, svg, json等）のみキャッシュを優先
+  const url = new URL(event.request.url);
+  const isStatic = url.pathname.endsWith('.css') ||
+                   url.pathname.endsWith('.svg') ||
+                   url.pathname.endsWith('.json') ||
+                   url.pathname.endsWith('.png');
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // 成功したレスポンスをキャッシュに更新
-        if (response && response.status === 200 && response.type === 'basic') {
-          const responseClone = response.clone();
+  if (isStatic) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        return cached || fetch(event.request).then((res) => {
+          const resClone = res.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+            cache.put(event.request, resClone);
           });
-        }
-        return response;
+          return res;
+        });
       })
-      .catch(() => {
-        // オフライン時はキャッシュから返す
-        return caches.match(event.request);
-      })
-  );
+    );
+  } else {
+    // HTMLページやAPIは常にサーバー（最新データ）を取得
+    event.respondWith(fetch(event.request));
+  }
 });
