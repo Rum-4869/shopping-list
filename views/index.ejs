@@ -52,6 +52,11 @@
 
   <script>
     (() => {
+      const THEME_KEY = 'shopping-settings-v1';
+      const settings = JSON.parse(localStorage.getItem(THEME_KEY) || '{}');
+      const theme = settings.theme === 'dark' ? 'dark' : 'light';
+      document.body.classList.toggle('dark-mode', theme === 'dark');
+
       const KEY = 'shopping-list-items-v1';
       const input = document.querySelector('input[name="itemName"]');
       const form = document.querySelector('.add-form');
@@ -224,15 +229,20 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
+        const itemName = input.value.trim();
+        if (!itemName) {
+          return;
+        }
+
         try {
-          const formData = new FormData(form);
           const response = await fetch(form.action, {
             method: 'POST',
             headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
               'Accept': 'application/json',
               'X-Requested-With': 'XMLHttpRequest'
             },
-            body: new URLSearchParams(formData).toString()
+            body: new URLSearchParams({ itemName }).toString()
           });
 
           if (!response.ok) {
@@ -384,9 +394,24 @@
   </script>
 
   <nav class="mobile-footer" aria-label="メインナビゲーション">
-    <a class="nav-btn active" href="/list">リスト</a>
-    <a class="nav-btn" href="/notes">メモ</a>
-    <a class="nav-btn" href="/settings">設定</a>
+    <a class="nav-btn active" href="/list" aria-label="リスト">
+      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 5.5h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"/>
+        <path d="M8 8.5h8M8 12h8M8 15.5h5"/>
+      </svg>
+    </a>
+    <a class="nav-btn" href="/notes" aria-label="メモ">
+      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M7 4.5h8.5L18 7v11.5A1.5 1.5 0 0 1 16.5 20h-9A1.5 1.5 0 0 1 6 18.5v-12A1.5 1.5 0 0 1 7.5 5H7Z"/>
+        <path d="M15.5 4.5V8H18M9 11.5h6M9 15h6"/>
+      </svg>
+    </a>
+    <a class="nav-btn" href="/settings" aria-label="設定">
+      <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3.5v2.2M12 18.3v2.2M4.7 12h2.2M17.1 12h2.2M6.6 6.6l1.6 1.6M15.8 15.8l1.6 1.6M17.4 6.6l-1.6 1.6M8.2 15.8l-1.6 1.6"/>
+        <circle cx="12" cy="12" r="3.5"/>
+      </svg>
+    </a>
   </nav>
 </body>
 </html>

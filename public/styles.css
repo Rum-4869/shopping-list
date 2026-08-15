@@ -472,18 +472,35 @@ input[type="text"]:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-height: 52px;
   border: none;
   background: transparent;
   color: var(--muted);
-  font-weight: 700;
-  padding: 8px 0;
-  border-radius: 12px;
+  border-radius: 14px;
   text-decoration: none;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.nav-btn:active {
+  transform: scale(0.96);
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
 
 .nav-btn.active {
   background: rgba(79, 156, 255, 0.12);
   color: var(--primary-dark);
+  box-shadow: inset 0 0 0 1px rgba(79, 156, 255, 0.08);
 }
 
 body.dark-mode {
