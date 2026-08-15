@@ -5,6 +5,7 @@ app.set('view engine', 'ejs');
 
 // CSSや画像などの静的ファイルを配信できるようにする
 app.use(express.static('public'));
+app.use(express.json());
 
 // ★新機能1：フォームから送られたデータを受け取るための魔法の設定
 app.use(express.urlencoded({ extended: true }));
@@ -71,6 +72,23 @@ app.post('/toggle/:id', (req, res) => {
     items[id].done = !items[id].done;
   }
   res.redirect('/list');
+});
+
+app.post('/reorder', (req, res) => {
+  const order = Array.isArray(req.body.order) ? req.body.order : [];
+  if (order.length === 0) {
+    return res.status(400).json({ ok: false, message: 'order is required' });
+  }
+
+  const currentItems = items.map(normalizeItem);
+  const orderedItems = order
+    .map((name) => currentItems.find((item) => item.name === name))
+    .filter(Boolean);
+
+  const remainingItems = currentItems.filter((item) => !order.includes(item.name));
+  items = [...orderedItems, ...remainingItems];
+
+  res.json({ ok: true, items: items.map(normalizeItem) });
 });
 
 // ★新機能3：削除ボタンが押された時の処理（POST）

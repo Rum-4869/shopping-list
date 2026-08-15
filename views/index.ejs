@@ -6,8 +6,16 @@
   <title>買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="dark-mode">
   <div class="container">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <span class="signal"></span>
+        <span class="battery"></span>
+      </div>
+    </div>
+
     <header class="app-header">
       <div>
         <p class="eyebrow">今日の買い物</p>
@@ -33,7 +41,7 @@
       <% items.forEach((item, index) => { %>
         <% const itemName = typeof item === 'string' ? item : item.name; %>
         <% const isDone = typeof item === 'string' ? false : item.done; %>
-        <li class="shopping-item <%= isDone ? 'done' : '' %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
+        <li class="shopping-item <%= isDone ? 'done' : '' %> <%= index === items.length - 1 ? 'new-item' : '' %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
           <form class="toggle-form" action="/toggle/<%= index %>" method="post">
             <button class="check-btn" type="submit" aria-label="<%= isDone ? '未完了に戻す' : '完了にする' %>">
               <span class="checkmark"><%= isDone ? '✓' : '' %></span>
@@ -66,6 +74,25 @@
         }));
 
         localStorage.setItem(KEY, JSON.stringify(items));
+      };
+
+      const sendReorder = async () => {
+        const order = [...document.querySelectorAll('.shopping-item')].map((item) => {
+          return item.dataset.name || item.querySelector('.item-name')?.textContent?.trim() || '';
+        }).filter(Boolean);
+
+        if (!order.length) return;
+
+        try {
+          await fetch('/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order })
+          });
+          syncStorage();
+        } catch (error) {
+          console.warn('並び替えの保存に失敗しました', error);
+        }
       };
 
       const restoreStorage = () => {
@@ -116,9 +143,60 @@
         }
       });
 
+      let draggedItem = null;
+      const items = [...document.querySelectorAll('.shopping-item')];
+
+      items.forEach((item) => {
+        item.draggable = true;
+
+        item.addEventListener('dragstart', () => {
+          draggedItem = item;
+          item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          item.classList.remove('drag-over');
+          draggedItem = null;
+        });
+
+        item.addEventListener('dragover', (event) => {
+          event.preventDefault();
+          item.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', () => {
+          item.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', (event) => {
+          event.preventDefault();
+          if (!draggedItem || draggedItem === item) return;
+
+          const list = item.parentElement;
+          const fromIndex = [...list.children].indexOf(draggedItem);
+          const toIndex = [...list.children].indexOf(item);
+
+          if (fromIndex < toIndex) {
+            list.insertBefore(draggedItem, item.nextSibling);
+          } else {
+            list.insertBefore(draggedItem, item);
+          }
+
+          item.classList.remove('drag-over');
+          sendReorder();
+        });
+      });
+
       restoreStorage();
       syncStorage();
     })();
   </script>
+
+  <nav class="mobile-footer" aria-label="メインナビゲーション">
+    <button class="nav-btn active" type="button">リスト</button>
+    <button class="nav-btn" type="button">メモ</button>
+    <button class="nav-btn" type="button">設定</button>
+  </nav>
 </body>
 </html>
