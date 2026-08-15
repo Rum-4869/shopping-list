@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メモ</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <span class="signal"></span>
+        <span class="battery"></span>
+      </div>
+    </div>
+
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">メモ</p>
+        <h1>メモ帳</h1>
+      </div>
+    </header>
+
+    <div class="mini-panel">
+      <p>買い物のメモを残せるスペースです。</p>
+      <textarea class="note-box" placeholder="今日は何を買う？"></textarea>
+      <div class="panel-actions">
+        <button class="secondary-btn" id="save-note-btn" type="button">保存する</button>
+        <span id="save-status" class="save-status" aria-live="polite">未保存</span>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobile-footer" aria-label="メインナビゲーション">
+    <a class="nav-btn" href="/list">リスト</a>
+    <a class="nav-btn active" href="/notes">メモ</a>
+    <a class="nav-btn" href="/settings">設定</a>
+  </nav>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = 'shopping-note-v1';
+      const textarea = document.querySelector('.note-box');
+      const saveButton = document.getElementById('save-note-btn');
+      const status = document.getElementById('save-status');
+
+      if (!textarea || !saveButton || !status) return;
+
+      textarea.value = localStorage.getItem(STORAGE_KEY) || '';
+
+      const markSaved = () => {
+        status.textContent = '保存済み';
+        status.classList.add('saved');
+      };
+
+      const markUnsaved = () => {
+        status.textContent = '未保存';
+        status.classList.remove('saved');
+      };
+
+      textarea.addEventListener('input', markUnsaved);
+
+      saveButton.addEventListener('click', () => {
+        localStorage.setItem(STORAGE_KEY, textarea.value);
+        markSaved();
+      });
+
+      if (textarea.value.trim()) {
+        markSaved();
+      }
+    })();
+  </script>
+</body>
+</html>

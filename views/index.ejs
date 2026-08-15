@@ -6,7 +6,7 @@
   <title>買い物リスト</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="dark-mode">
+<body>
   <div class="container">
     <div class="status-bar">
       <span>9:41</span>
@@ -41,8 +41,8 @@
       <% items.forEach((item, index) => { %>
         <% const itemName = typeof item === 'string' ? item : item.name; %>
         <% const isDone = typeof item === 'string' ? false : item.done; %>
-        <li class="shopping-item <%= isDone ? 'done' : '' %> <%= index === items.length - 1 ? 'new-item' : '' %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
-          <form class="toggle-form" action="/toggle/<%= index %>" method="post">
+        <li class="shopping-item <%= isDone ? 'done' : '' %> <%= index === items.length - 1 ? 'new-item' : '' %>" data-id="<%= item.id %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
+          <form class="toggle-form" action="/toggle/<%= item.id %>" method="post">
             <button class="check-btn" type="submit" aria-label="<%= isDone ? '未完了に戻す' : '完了にする' %>">
               <span class="checkmark"><%= isDone ? '✓' : '' %></span>
             </button>
@@ -50,7 +50,7 @@
 
           <span class="item-name"><%= itemName %></span>
 
-          <form class="delete-form" action="/delete/<%= index %>" method="post">
+          <form class="delete-form" action="/delete/<%= item.id %>" method="post">
             <button class="delete-btn" type="submit">削除</button>
           </form>
         </li>
@@ -69,6 +69,7 @@
 
       const syncStorage = () => {
         const items = [...document.querySelectorAll('.shopping-item')].map((item) => ({
+          id: Number(item.dataset.id),
           name: item.dataset.name || item.querySelector('.item-name')?.textContent?.trim() || '',
           done: item.classList.contains('done')
         }));
@@ -77,9 +78,9 @@
       };
 
       const sendReorder = async () => {
-        const order = [...document.querySelectorAll('.shopping-item')].map((item) => {
-          return item.dataset.name || item.querySelector('.item-name')?.textContent?.trim() || '';
-        }).filter(Boolean);
+        const order = [...document.querySelectorAll('.shopping-item')]
+          .map((item) => Number(item.dataset.id))
+          .filter((id) => Number.isInteger(id));
 
         if (!order.length) return;
 
@@ -101,8 +102,10 @@
           if (!Array.isArray(saved) || saved.length === 0) return;
 
           const items = [...document.querySelectorAll('.shopping-item')];
-          saved.forEach((entry, index) => {
-            const target = items[index];
+          const map = new Map(items.map((item) => [Number(item.dataset.id), item]));
+
+          saved.forEach((entry) => {
+            const target = map.get(Number(entry.id));
             if (!target || !entry || !entry.name) return;
 
             target.dataset.name = entry.name;
@@ -119,6 +122,15 @@
               checkmark.textContent = isDone ? '✓' : '';
             }
           });
+
+          const orderedItems = saved
+            .map((entry) => map.get(Number(entry.id)))
+            .filter(Boolean);
+
+          const fragment = document.createDocumentFragment();
+          orderedItems.forEach((item) => fragment.appendChild(item));
+          list.innerHTML = '';
+          list.appendChild(fragment);
         } catch (error) {
           console.warn('ローカルストレージの読み込みに失敗しました', error);
         }
@@ -144,46 +156,64 @@
       });
 
       let draggedItem = null;
+
+      const applyDropPosition = (item, event) => {
+        const rect = item.getBoundingClientRect();
+        const isBelowMidpoint = event.clientY > rect.top + rect.height / 2;
+        item.classList.toggle('drag-over-top', !isBelowMidpoint);
+        item.classList.toggle('drag-over-bottom', isBelowMidpoint);
+      };
+
       const items = [...document.querySelectorAll('.shopping-item')];
 
       items.forEach((item) => {
         item.draggable = true;
 
-        item.addEventListener('dragstart', () => {
+        item.addEventListener('dragstart', (event) => {
           draggedItem = item;
           item.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', item.dataset.id || '');
         });
 
         item.addEventListener('dragend', () => {
           item.classList.remove('dragging');
           item.classList.remove('drag-over');
+          item.classList.remove('drag-over-top');
+          item.classList.remove('drag-over-bottom');
           draggedItem = null;
         });
 
         item.addEventListener('dragover', (event) => {
           event.preventDefault();
+          if (!draggedItem || draggedItem === item) return;
           item.classList.add('drag-over');
+          applyDropPosition(item, event);
         });
 
         item.addEventListener('dragleave', () => {
           item.classList.remove('drag-over');
+          item.classList.remove('drag-over-top');
+          item.classList.remove('drag-over-bottom');
         });
 
         item.addEventListener('drop', (event) => {
           event.preventDefault();
           if (!draggedItem || draggedItem === item) return;
 
+          const rect = item.getBoundingClientRect();
+          const insertAfter = event.clientY > rect.top + rect.height / 2;
           const list = item.parentElement;
-          const fromIndex = [...list.children].indexOf(draggedItem);
-          const toIndex = [...list.children].indexOf(item);
 
-          if (fromIndex < toIndex) {
+          if (insertAfter) {
             list.insertBefore(draggedItem, item.nextSibling);
           } else {
             list.insertBefore(draggedItem, item);
           }
 
           item.classList.remove('drag-over');
+          item.classList.remove('drag-over-top');
+          item.classList.remove('drag-over-bottom');
           sendReorder();
         });
       });
@@ -194,9 +224,9 @@
   </script>
 
   <nav class="mobile-footer" aria-label="メインナビゲーション">
-    <button class="nav-btn active" type="button">リスト</button>
-    <button class="nav-btn" type="button">メモ</button>
-    <button class="nav-btn" type="button">設定</button>
+    <a class="nav-btn active" href="/list">リスト</a>
+    <a class="nav-btn" href="/notes">メモ</a>
+    <a class="nav-btn" href="/settings">設定</a>
   </nav>
 </body>
 </html>

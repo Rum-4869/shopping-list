@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <span class="signal"></span>
+        <span class="battery"></span>
+      </div>
+    </div>
+
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">設定</p>
+        <h1>設定</h1>
+      </div>
+    </header>
+
+    <div class="mini-panel">
+      <div class="setting-row">
+        <span>通知</span>
+        <button class="toggle-btn" type="button" data-setting="notifications" aria-pressed="true">ON</button>
+      </div>
+      <div class="setting-row">
+        <span>音</span>
+        <button class="toggle-btn" type="button" data-setting="sound" aria-pressed="false">OFF</button>
+      </div>
+      <div class="setting-row">
+        <span>テーマ</span>
+        <button class="theme-switch" type="button" id="theme-toggle">ライト</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobile-footer" aria-label="メインナビゲーション">
+    <a class="nav-btn" href="/list">リスト</a>
+    <a class="nav-btn" href="/notes">メモ</a>
+    <a class="nav-btn active" href="/settings">設定</a>
+  </nav>
+
+  <script>
+    (() => {
+      const SETTINGS_KEY = 'shopping-settings-v1';
+      const defaults = {
+        notifications: true,
+        sound: false,
+        theme: 'light'
+      };
+
+      const readSettings = () => {
+        try {
+          return { ...defaults, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') };
+        } catch (error) {
+          return { ...defaults };
+        }
+      };
+
+      const persistSettings = (settings) => {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      };
+
+      const applySettings = (settings) => {
+        document.body.classList.toggle('dark-mode', settings.theme === 'dark');
+
+        document.querySelectorAll('[data-setting]').forEach((button) => {
+          const key = button.dataset.setting;
+          const enabled = Boolean(settings[key]);
+          button.classList.toggle('on', enabled);
+          button.setAttribute('aria-pressed', String(enabled));
+          button.textContent = enabled ? 'ON' : 'OFF';
+        });
+
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+          themeToggle.textContent = settings.theme === 'dark' ? 'ダーク' : 'ライト';
+        }
+      };
+
+      const settings = readSettings();
+      applySettings(settings);
+
+      document.querySelectorAll('[data-setting]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const key = button.dataset.setting;
+          settings[key] = !settings[key];
+          persistSettings(settings);
+          applySettings(settings);
+        });
+      });
+
+      const themeToggle = document.getElementById('theme-toggle');
+      if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+          settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+          persistSettings(settings);
+          applySettings(settings);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
