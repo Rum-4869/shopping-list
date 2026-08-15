@@ -9,32 +9,85 @@ app.set('view engine', 'ejs');
 app.use(express.static('public'));
 app.use(express.json());
 
-// ★新機能1：フォームから送られたデータを受け取るための魔法の設定
+// フォームから送られたデータを受け取る
 app.use(express.urlencoded({ extended: true }));
 
 const DATA_DIR = path.join(__dirname, 'data');
-const STORE_PATH = path.join(DATA_DIR, 'shopping-list.json');
+const USERS_DIR = path.join(DATA_DIR, 'users');
+const USER_COOKIE_NAME = 'shopping_user_id';
 
-function ensureStore() {
+function sanitizeUserId(value) {
+  return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '_') || 'guest';
+}
+
+function ensureUserStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(STORE_PATH)) {
-    fs.writeFileSync(STORE_PATH, JSON.stringify([
-      { id: 1, name: '牛乳', done: false },
-      { id: 2, name: '卵', done: false },
-      { id: 3, name: '食パン', done: false },
-      { id: 4, name: 'お肉', done: false }
-    ], null, 2));
+  fs.mkdirSync(USERS_DIR, { recursive: true });
+}
+
+function getUserIdFromCookie(req) {
+  const cookieHeader = req.headers.cookie || '';
+  const cookie = cookieHeader
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${USER_COOKIE_NAME}=`));
+
+  if (!cookie) return null;
+  return decodeURIComponent(cookie.slice(USER_COOKIE_NAME.length + 1));
+}
+
+function generateUserId() {
+  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function ensureUserSession(req, res) {
+  let userId = getUserIdFromCookie(req);
+  if (!userId) {
+    userId = generateUserId();
+    res.cookie(USER_COOKIE_NAME, userId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
   }
+
+  req.userId = userId;
 }
 
-function saveItems() {
-  fs.writeFileSync(STORE_PATH, JSON.stringify(items, null, 2));
+app.use((req, res, next) => {
+  ensureUserSession(req, res);
+  next();
+});
+
+function createDefaultItems() {
+  return [
+    { id: 1, name: '牛乳', done: false },
+    { id: 2, name: '卵', done: false },
+    { id: 3, name: '食パン', done: false },
+    { id: 4, name: 'お肉', done: false }
+  ];
 }
 
-function loadItems() {
-  ensureStore();
+function getStorePath(userId) {
+  ensureUserStore();
+  return path.join(USERS_DIR, `${sanitizeUserId(userId)}.json`);
+}
+
+function saveItemsForUser(userId, items) {
+  fs.writeFileSync(getStorePath(userId), JSON.stringify(items, null, 2));
+}
+
+function loadItemsForUser(userId) {
+  const storePath = getStorePath(userId);
+
+  if (!fs.existsSync(storePath)) {
+    const initialItems = createDefaultItems();
+    saveItemsForUser(userId, initialItems);
+    return initialItems;
+  }
+
   try {
-    const parsed = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(storePath, 'utf8'));
     if (!Array.isArray(parsed)) return [];
     return parsed
       .map((item) => ({
@@ -49,30 +102,23 @@ function loadItems() {
   }
 }
 
-let nextId = 1;
-
-function createItem(name, done = false) {
-  const item = {
-    id: nextId++,
-    name: String(name).trim(),
-    done: Boolean(done)
-  };
-
-  return item;
-}
-
-let items = loadItems();
-nextId = items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
-
 function normalizeItem(item) {
   if (typeof item === 'string') {
-    return { id: nextId++, name: item.trim(), done: false };
+    return { id: Date.now() + Math.random(), name: item.trim(), done: false };
   }
 
   return {
-    id: Number(item && item.id ? item.id : nextId++),
+    id: Number(item && item.id ? item.id : 0),
     name: String(item && item.name ? item.name : '').trim(),
     done: Boolean(item && item.done)
+  };
+}
+
+function createItem(name, nextId, done = false) {
+  return {
+    id: nextId,
+    name: String(name).trim(),
+    done: Boolean(done)
   };
 }
 
@@ -94,6 +140,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/list', (req, res) => {
+  const items = loadItemsForUser(req.userId);
   const normalizedItems = items.map(normalizeItem);
   res.render('index.ejs', { items: normalizedItems, activeTab: 'list' });
 });
@@ -106,8 +153,9 @@ app.get('/settings', (req, res) => {
   res.render('settings.ejs', { activeTab: 'settings' });
 });
 
-// ★新機能2：追加ボタンが押された時の処理（POST）
+// 追加ボタンが押された時の処理（POST）
 app.post('/add', (req, res) => {
+  const userId = req.userId;
   const newItemName = sanitizeItemName(req.body.itemName);
   if (!newItemName) {
     if (isJsonRequest(req)) {
@@ -116,9 +164,9 @@ app.post('/add', (req, res) => {
     return res.redirect('/list');
   }
 
+  const items = loadItemsForUser(userId);
   const hasDuplicate = items.some((item) => {
-    const normalized = normalizeItem(item).name.toLowerCase();
-    return normalized === newItemName.toLowerCase();
+    return normalizeItem(item).name.toLowerCase() === newItemName.toLowerCase();
   });
 
   if (hasDuplicate) {
@@ -128,9 +176,10 @@ app.post('/add', (req, res) => {
     return res.redirect('/list');
   }
 
-  const item = createItem(newItemName);
+  const nextId = items.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+  const item = createItem(newItemName, nextId);
   items.push(item);
-  saveItems();
+  saveItemsForUser(userId, items);
 
   if (isJsonRequest(req)) {
     return res.json({ ok: true, item });
@@ -140,11 +189,14 @@ app.post('/add', (req, res) => {
 });
 
 app.post('/toggle/:id', (req, res) => {
+  const userId = req.userId;
   const id = Number(req.params.id);
+  const items = loadItemsForUser(userId);
   const target = items.find((item) => item.id === id);
+
   if (target) {
     target.done = !target.done;
-    saveItems();
+    saveItemsForUser(userId, items);
     if (isJsonRequest(req)) {
       return res.json({ ok: true, item: target });
     }
@@ -155,11 +207,13 @@ app.post('/toggle/:id', (req, res) => {
 });
 
 app.post('/reorder', (req, res) => {
+  const userId = req.userId;
   const order = Array.isArray(req.body.order) ? req.body.order : [];
   if (order.length === 0) {
     return res.status(400).json({ ok: false, message: 'order is required' });
   }
 
+  const items = loadItemsForUser(userId);
   const ids = order.map(Number).filter((id) => Number.isInteger(id));
   const currentItems = items.map(normalizeItem);
   const orderedItems = ids
@@ -167,18 +221,19 @@ app.post('/reorder', (req, res) => {
     .filter(Boolean);
 
   const remainingItems = currentItems.filter((item) => !ids.includes(item.id));
-  items = [...orderedItems, ...remainingItems];
-  saveItems();
+  const reordered = [...orderedItems, ...remainingItems];
+  saveItemsForUser(userId, reordered);
 
-  res.json({ ok: true, items: items.map(normalizeItem) });
+  res.json({ ok: true, items: reordered.map(normalizeItem) });
 });
 
-// ★新機能3：削除ボタンが押された時の処理（POST）
 app.post('/delete/:id', (req, res) => {
+  const userId = req.userId;
   const id = Number(req.params.id);
+  const items = loadItemsForUser(userId);
   const target = items.find((item) => item.id === id);
-  items = items.filter((item) => item.id !== id);
-  saveItems();
+  const filteredItems = items.filter((item) => item.id !== id);
+  saveItemsForUser(userId, filteredItems);
 
   if (isJsonRequest(req)) {
     return res.json({ ok: true, deleted: Boolean(target), id });
@@ -187,8 +242,11 @@ app.post('/delete/:id', (req, res) => {
   res.redirect('/list');
 });
 
-// サーバー起動
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`サーバーが ${port} 番ポートで起動しました！`);
-});
+module.exports = app;
+
+if (require.main === module) {
+  const port = process.env.PORT || 3000;
+  app.listen(port, () => {
+    console.log(`サーバーが ${port} 番ポートで起動しました！`);
+  });
+}

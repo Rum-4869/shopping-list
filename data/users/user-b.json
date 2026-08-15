@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "name": "牛乳",
+    "done": false
+  },
+  {
+    "id": 2,
+    "name": "卵",
+    "done": false
+  },
+  {
+    "id": 3,
+    "name": "食パン",
+    "done": false
+  },
+  {
+    "id": 4,
+    "name": "お肉",
+    "done": false
+  },
+  {
+    "id": 5,
+    "name": "牛乳B",
+    "done": false
+  }
+]

@@ -54,7 +54,24 @@
 
   <script>
     (() => {
-      const SETTINGS_KEY = 'shopping-settings-v1';
+      const getCurrentUserId = () => {
+        const cookies = Object.fromEntries(
+          document.cookie
+            .split(';')
+            .map((cookie) => cookie.trim())
+            .filter(Boolean)
+            .map((cookie) => {
+              const index = cookie.indexOf('=');
+              const key = index >= 0 ? cookie.slice(0, index) : cookie;
+              const value = index >= 0 ? decodeURIComponent(cookie.slice(index + 1)) : '';
+              return [key, value];
+            })
+        );
+
+        return cookies.shopping_user_id || 'guest';
+      };
+
+      const SETTINGS_KEY = `shopping-settings-v1-${getCurrentUserId()}`;
       const defaults = {
         notifications: true,
         sound: false,
