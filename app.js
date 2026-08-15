@@ -32,6 +32,7 @@ app.post('/delete/:id', (req, res) => {
 });
 
 // サーバー起動
-app.listen(3000, () => {
-  console.log('サーバーが3000番ポートで起動しました！');
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`サーバーが ${port} 番ポートで起動しました！`);
 });
