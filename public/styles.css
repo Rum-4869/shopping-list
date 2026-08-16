@@ -1110,3 +1110,21 @@ body.dark-mode .share-list-btn {
   color: #93c5fd;
   border-color: rgba(59, 130, 246, 0.35);
 }
+
+/* ==========================================
+   SortableJS のスタイル
+   ========================================== */
+.sortable-ghost {
+  opacity: 0.3;
+  background-color: var(--bg);
+}
+
+.sortable-drag {
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.15) !important;
+  cursor: grabbing !important;
+  opacity: 1 !important;
+}
+
+body.dark-mode .sortable-drag {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5) !important;
+}

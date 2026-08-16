@@ -136,6 +136,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="/sound.js?v=4"></script>
   <script src="/notify.js?v=4"></script>
   <script>
@@ -709,74 +710,17 @@
         });
       }
 
-      let draggedItem = null;
-
-      const applyDropPosition = (item, event) => {
-        const rect = item.getBoundingClientRect();
-        const isBelowMidpoint = event.clientY > rect.top + rect.height / 2;
-        item.classList.toggle('drag-over-top', !isBelowMidpoint);
-        item.classList.toggle('drag-over-bottom', isBelowMidpoint);
-      };
-
-      const items = [...document.querySelectorAll('.shopping-item')];
-
-      items.forEach((item) => {
-        const handle = item.querySelector('.drag-handle');
-        if (handle) {
-          handle.addEventListener('mousedown', () => { item.draggable = true; });
-          handle.addEventListener('touchstart', () => { item.draggable = true; }, { passive: true });
-          handle.addEventListener('mouseup', () => { item.draggable = false; });
-          handle.addEventListener('touchend', () => { item.draggable = false; });
-        }
-
-        item.addEventListener('dragstart', (event) => {
-          draggedItem = item;
-          item.classList.add('dragging');
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', item.dataset.id || '');
-        });
-
-        item.addEventListener('dragend', () => {
-          item.draggable = false;
-          item.classList.remove('dragging');
-          item.classList.remove('drag-over');
-          item.classList.remove('drag-over-top');
-          item.classList.remove('drag-over-bottom');
-          draggedItem = null;
-        });
-
-        item.addEventListener('dragover', (event) => {
-          event.preventDefault();
-          if (!draggedItem || draggedItem === item) return;
-          item.classList.add('drag-over');
-          applyDropPosition(item, event);
-        });
-
-        item.addEventListener('dragleave', () => {
-          item.classList.remove('drag-over');
-          item.classList.remove('drag-over-top');
-          item.classList.remove('drag-over-bottom');
-        });
-
-        item.addEventListener('drop', (event) => {
-          event.preventDefault();
-          if (!draggedItem || draggedItem === item) return;
-
-          const rect = item.getBoundingClientRect();
-          const insertAfter = event.clientY > rect.top + rect.height / 2;
-          const list = item.parentElement;
-
-          if (insertAfter) {
-            list.insertBefore(draggedItem, item.nextSibling);
-          } else {
-            list.insertBefore(draggedItem, item);
-          }
-
-          item.classList.remove('drag-over');
-          item.classList.remove('drag-over-top');
-          item.classList.remove('drag-over-bottom');
+      Sortable.create(list, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        onStart: function() {
+          window.isSorting = true;
+        },
+        onEnd: function(evt) {
+          window.isSorting = false;
           sendReorder();
-        });
+        }
       });
 
       // Socket.io のリアルタイム更新
@@ -851,7 +795,7 @@
         });
 
         socket.on('itemsReordered', (newItems) => {
-          if (!document.querySelector('.dragging')) {
+          if (!window.isSorting) {
             window.location.reload();
           }
         });
