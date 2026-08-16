@@ -100,9 +100,23 @@
       font-size: 0.95rem;
       font-style: italic;
     }
+    
+    /* オーバーライド: adminページではスクロールを許可し、flexセンタリングを解除 */
+    body.admin-page {
+      display: block !important;
+      height: auto !important;
+      min-height: 100vh !important;
+      overflow-y: auto !important;
+      padding: 0 !important;
+      background-color: var(--bg) !important;
+    }
+    html {
+      height: auto !important;
+      overflow-y: auto !important;
+    }
   </style>
 </head>
-<body class="light-mode">
+<body class="light-mode admin-page">
   <script>
     // ダークモードの適用
     const THEME_KEY = 'shopping-settings-v1';
