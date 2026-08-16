@@ -378,13 +378,15 @@
             throw new Error('invalid response');
           }
 
-          const itemElement = createItemElement(data.item);
-          attachItemEvents(itemElement);
-          list.appendChild(itemElement);
+          if (!document.querySelector(`.shopping-item[data-id="${data.item.id}"]`)) {
+            const itemElement = createItemElement(data.item);
+            attachItemEvents(itemElement);
+            list.appendChild(itemElement);
+            syncStorage();
+            window.AppSound && window.AppSound.play('add');
+            list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+          }
           form.reset();
-          syncStorage();
-          window.AppSound && window.AppSound.play('add');
-          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
         } catch (error) {
           form.submit();
         }
@@ -426,12 +428,14 @@
             throw new Error('invalid response');
           }
 
-          const itemElement = createItemElement(data.item);
-          attachItemEvents(itemElement);
-          list.appendChild(itemElement);
-          syncStorage();
-          window.AppSound && window.AppSound.play('add');
-          list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+          if (!document.querySelector(`.shopping-item[data-id="${data.item.id}"]`)) {
+            const itemElement = createItemElement(data.item);
+            attachItemEvents(itemElement);
+            list.appendChild(itemElement);
+            syncStorage();
+            window.AppSound && window.AppSound.play('add');
+            list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+          }
         } catch (error) {
           console.warn('クイック追加に失敗しました', error);
         }
