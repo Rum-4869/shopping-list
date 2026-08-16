@@ -114,6 +114,71 @@
       height: auto !important;
       overflow-y: auto !important;
     }
+    
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--card-shadow);
+    }
+    .stat-card h4 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    .stat-card p {
+      margin: 0;
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    
+    .user-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    
+    .admin-item-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .admin-item-list li {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .admin-item-list li:last-child {
+      border-bottom: none;
+    }
+    .admin-item-list li.done {
+      opacity: 0.6;
+    }
+    .admin-item-name {
+      font-weight: 500;
+      font-size: 0.95rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .admin-item-name.done {
+      text-decoration: line-through;
+    }
+    .admin-item-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+    }
   </style>
 </head>
 <body class="light-mode admin-page">
@@ -134,40 +199,81 @@
     
     <p style="margin-bottom: 30px; color: var(--muted);">登録されているユーザー（個人）や合言葉（ルーム）と、そのリスト一覧です。</p>
     
+    <% 
+      let totalPersonal = 0;
+      let totalShared = 0;
+      let totalItems = 0;
+      adminData.forEach(u => {
+        if(u.isShared) totalShared++; else totalPersonal++;
+        totalItems += u.items.length;
+      });
+    %>
+    
+    <div class="stats-row">
+      <div class="stat-card">
+        <h4>個人のユーザー数</h4>
+        <p><%= totalPersonal %></p>
+      </div>
+      <div class="stat-card">
+        <h4>合言葉（ルーム）数</h4>
+        <p><%= totalShared %></p>
+      </div>
+      <div class="stat-card">
+        <h4>登録アイテム総数</h4>
+        <p><%= totalItems %></p>
+      </div>
+    </div>
+
     <% if (adminData.length === 0) { %>
       <div class="user-card" style="text-align: center;">
         <p class="empty-state">まだデータがありません。</p>
       </div>
     <% } %>
 
-    <% adminData.forEach(user => { %>
-      <div class="user-card">
-        <h3>
-          <% if (user.isShared) { %>
-            <span class="room-badge">合言葉</span> <%= user.userId.replace('room:', '') %>
-          <% } else { %>
-            <span class="personal-badge">個人</span> <%= user.displayName ? user.displayName : user.userId.substring(0, 8) + '...' %>
-          <% } %>
-          <span class="meta-info">
-            作成: <%= new Date(user.createdAt).toLocaleString('ja-JP') %>
-          </span>
-        </h3>
-        <div>
-          <% if (user.items.length === 0) { %>
-            <span class="empty-state">アイテムなし</span>
-          <% } else { %>
-            <% user.items.forEach(item => { %>
-              <span class="item-tag <%= item.done ? 'done' : '' %>">
-                <%= item.name %> <small>x<%= item.quantity %></small>
-                <% if (user.isShared && item.addedByName) { %>
-                  <small style="opacity: 0.7; margin-left: 4px;">(by <%= item.addedByName %>)</small>
-                <% } %>
-              </span>
-            <% }) %>
-          <% } %>
+    <div class="user-grid">
+      <% adminData.forEach(user => { %>
+        <div class="user-card">
+          <h3>
+            <% if (user.isShared) { %>
+              <span class="room-badge">合言葉</span> <%= user.userId.replace('room:', '') %>
+            <% } else { %>
+              <span class="personal-badge">個人</span> <%= user.displayName ? user.displayName : user.userId.substring(0, 8) + '...' %>
+            <% } %>
+            <span class="meta-info">
+              作成: <%= new Date(user.createdAt).toLocaleDateString('ja-JP') %>
+            </span>
+          </h3>
+          
+          <div>
+            <% if (user.items.length === 0) { %>
+              <p class="empty-state">アイテムなし</p>
+            <% } else { %>
+              <ul class="admin-item-list">
+                <% 
+                  const pendingItems = user.items.filter(i => !i.done);
+                  const doneItems = user.items.filter(i => i.done);
+                  const sortedItems = [...pendingItems, ...doneItems];
+                %>
+                <% sortedItems.forEach(item => { %>
+                  <li class="<%= item.done ? 'done' : '' %>">
+                    <div class="admin-item-name <%= item.done ? 'done' : '' %>">
+                      <span><%= item.name %></span>
+                      <% if (user.isShared && item.addedByName) { %>
+                        <small style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;">by <%= item.addedByName %></small>
+                      <% } %>
+                    </div>
+                    <div class="admin-item-meta">
+                      <div>x<%= item.quantity %></div>
+                      <div><%= item.done ? '完了' : '未完了' %></div>
+                    </div>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </div>
         </div>
-      </div>
-    <% }) %>
+      <% }) %>
+    </div>
   </div>
 </body>
 </html>
