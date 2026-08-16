@@ -449,6 +449,31 @@ async function closePool() {
   }
 }
 
+async function getAllDataForAdmin() {
+  const currentPool = getPool();
+  const [users] = await currentPool.query('SELECT user_id, created_at FROM shopping_users ORDER BY created_at DESC');
+  
+  const [items] = await currentPool.query('SELECT id, user_id, name, done, quantity FROM shopping_items ORDER BY display_order ASC, id ASC');
+  
+  const itemsByUser = {};
+  items.forEach(item => {
+    if (!itemsByUser[item.user_id]) itemsByUser[item.user_id] = [];
+    itemsByUser[item.user_id].push({
+      id: item.id,
+      name: item.name,
+      done: Boolean(item.done),
+      quantity: item.quantity || 1
+    });
+  });
+
+  return users.map(user => ({
+    userId: user.user_id,
+    isShared: user.user_id.startsWith('room:'),
+    createdAt: user.created_at,
+    items: itemsByUser[user.user_id] || []
+  }));
+}
+
 module.exports = {
   getPool,
   initDatabase,
@@ -464,6 +489,7 @@ module.exports = {
   getPresetsForUser,
   addPreset,
   deletePreset,
+  getAllDataForAdmin,
   closePool
 };
 
