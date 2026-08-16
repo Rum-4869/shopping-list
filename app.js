@@ -1,7 +1,22 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require('socket.io');
+const io = new Server(server);
 const db = require('./db');
+
+io.on('connection', (socket) => {
+  socket.on('join', (room) => {
+    socket.join(room);
+  });
+});
+
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 app.set('view engine', 'ejs');
 
@@ -100,7 +115,8 @@ app.get('/list', async (req, res, next) => {
       presets,
       activeTab: 'list',
       isShared: req.isShared,
-      roomName: req.roomName
+      roomName: req.roomName,
+      userId: req.userId
     });
   } catch (error) {
     next(error);
@@ -237,6 +253,8 @@ app.post('/add', async (req, res, next) => {
       return res.redirect('/list');
     }
 
+    req.io.to(req.userId).emit('itemAdded', result.item);
+
     if (isJsonRequest(req)) {
       return res.json({ ok: true, item: result.item });
     }
@@ -254,6 +272,7 @@ app.post('/toggle/:id', async (req, res, next) => {
     const result = await db.toggleItem(userId, req.params.id);
 
     if (result.ok) {
+      req.io.to(req.userId).emit('itemToggled', result.item);
       if (isJsonRequest(req)) {
         return res.json({ ok: true, item: result.item });
       }
@@ -275,6 +294,7 @@ app.post('/update-quantity/:id', async (req, res, next) => {
     const result = await db.updateQuantity(userId, req.params.id, delta);
 
     if (result.ok) {
+      req.io.to(req.userId).emit('itemQuantityUpdated', result.item);
       if (isJsonRequest(req)) {
         return res.json({ ok: true, item: result.item });
       }
@@ -298,6 +318,7 @@ app.post('/reorder', async (req, res, next) => {
       return res.status(result.status || 400).json({ ok: false, message: result.message });
     }
 
+    req.io.to(req.userId).emit('itemsReordered', result.items);
     res.json({ ok: true, items: result.items });
   } catch (error) {
     next(error);
@@ -309,6 +330,8 @@ app.post('/delete/:id', async (req, res, next) => {
   try {
     const userId = req.userId;
     const result = await db.deleteItem(userId, req.params.id);
+
+    req.io.to(req.userId).emit('itemDeleted', result.id);
 
     if (isJsonRequest(req)) {
       return res.json({ ok: true, deleted: result.deleted, id: result.id });
@@ -325,6 +348,8 @@ app.post('/clear-completed', async (req, res, next) => {
   try {
     const userId = req.userId;
     const result = await db.deleteCompletedItems(userId);
+
+    req.io.to(req.userId).emit('completedCleared');
 
     if (isJsonRequest(req)) {
       return res.json({ ok: true, count: result.count });
@@ -351,7 +376,7 @@ if (require.main === module) {
   const port = process.env.PORT || 3000;
   db.initDatabase()
     .then(() => {
-      app.listen(port, () => {
+      server.listen(port, () => {
         console.log(`サーバーが ${port} 番ポートで起動しました！`);
       });
     })

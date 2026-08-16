@@ -128,6 +128,7 @@
     </ul>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="/sound.js?v=4"></script>
   <script src="/notify.js?v=4"></script>
   <script>
@@ -748,6 +749,84 @@
           sendReorder();
         });
       });
+
+      // Socket.io のリアルタイム更新
+      if (typeof io !== 'undefined') {
+        const socket = io();
+        const serverUserId = '<%= typeof userId !== "undefined" ? userId : "" %>';
+        if (serverUserId) {
+          socket.emit('join', serverUserId);
+        }
+
+        socket.on('itemAdded', (item) => {
+          const existing = document.querySelector(`.shopping-item[data-id="${item.id}"]`);
+          if (!existing) {
+            const itemElement = createItemElement(item);
+            attachItemEvents(itemElement);
+            list.appendChild(itemElement);
+            syncStorage();
+            window.AppSound && window.AppSound.play('add');
+            list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+          }
+        });
+
+        socket.on('itemToggled', (item) => {
+          const existing = document.querySelector(`.shopping-item[data-id="${item.id}"]`);
+          if (existing) {
+            const isDone = Boolean(item.done);
+            if (existing.classList.contains('done') !== isDone) {
+              existing.classList.toggle('done', isDone);
+              const checkBtn = existing.querySelector('.check-btn');
+              const checkmark = existing.querySelector('.checkmark');
+              if (checkBtn && checkmark) {
+                checkBtn.setAttribute('aria-label', isDone ? '未完了に戻す' : '完了にする');
+                checkmark.textContent = isDone ? '✓' : '';
+              }
+              syncStorage();
+              window.AppSound && window.AppSound.play(isDone ? 'check' : 'uncheck');
+            }
+          }
+        });
+
+        socket.on('itemQuantityUpdated', (item) => {
+          const existing = document.querySelector(`.shopping-item[data-id="${item.id}"]`);
+          if (existing) {
+            const qtyValueEl = existing.querySelector('.qty-value');
+            if (qtyValueEl && qtyValueEl.textContent != item.quantity) {
+              qtyValueEl.textContent = item.quantity;
+              const plusBtn = existing.querySelector('.qty-plus');
+              if (plusBtn) {
+                plusBtn.classList.add('qty-animate');
+                setTimeout(() => plusBtn.classList.remove('qty-animate'), 200);
+              }
+            }
+          }
+        });
+
+        socket.on('itemDeleted', (id) => {
+          const existing = document.querySelector(`.shopping-item[data-id="${id}"]`);
+          if (existing) {
+            existing.remove();
+            syncStorage();
+            window.AppSound && window.AppSound.play('delete');
+          }
+        });
+
+        socket.on('completedCleared', () => {
+          const completedItems = [...document.querySelectorAll('.shopping-item.done:not(.removing)')];
+          if (completedItems.length > 0) {
+            completedItems.forEach(item => item.remove());
+            syncStorage();
+            window.AppSound && window.AppSound.play('delete');
+          }
+        });
+
+        socket.on('itemsReordered', (newItems) => {
+          if (!document.querySelector('.dragging')) {
+            window.location.reload();
+          }
+        });
+      }
 
       syncStorage();
     })();
