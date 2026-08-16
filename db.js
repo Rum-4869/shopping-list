@@ -495,12 +495,19 @@ async function getAllDataForAdmin() {
     });
   });
 
+  const [notes] = await currentPool.query('SELECT user_id, content FROM shopping_notes');
+  const notesByUser = {};
+  notes.forEach(n => {
+    notesByUser[n.user_id] = n.content;
+  });
+
   return users.map(user => ({
     userId: user.user_id,
     displayName: user.display_name || '',
     isShared: user.user_id.startsWith('room:'),
     createdAt: user.created_at,
-    items: itemsByUser[user.user_id] || []
+    items: itemsByUser[user.user_id] || [],
+    note: notesByUser[user.user_id] || ''
   }));
 }
 

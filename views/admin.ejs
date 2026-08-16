@@ -245,6 +245,13 @@
           </h3>
           
           <div>
+            <% if (user.note) { %>
+              <div style="background: var(--bg); padding: 10px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; border: 1px dashed var(--primary-soft);">
+                <strong style="color: var(--muted); font-size: 0.8rem; display: block; margin-bottom: 4px;">📝 メモ</strong>
+                <span style="white-space: pre-wrap;"><%= user.note %></span>
+              </div>
+            <% } %>
+
             <% if (user.items.length === 0) { %>
               <p class="empty-state">アイテムなし</p>
             <% } else { %>
