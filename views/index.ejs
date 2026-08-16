@@ -106,6 +106,13 @@
         <% const itemName = typeof item === 'string' ? item : item.name; %>
         <% const isDone = typeof item === 'string' ? false : item.done; %>
         <li class="shopping-item <%= isDone ? 'done' : '' %> <%= index === items.length - 1 ? 'new-item' : '' %>" data-id="<%= item.id %>" data-name="<%= itemName %>" data-done="<%= isDone %>">
+          <div class="drag-handle" aria-label="並び替え">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <line x1="4" y1="8" x2="20" y2="8"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="16" x2="20" y2="16"></line>
+            </svg>
+          </div>
           <form class="toggle-form" action="/toggle/<%= item.id %>" method="post">
             <button class="check-btn" type="submit" aria-label="<%= isDone ? '未完了に戻す' : '完了にする' %>">
               <span class="checkmark"><%= isDone ? '✓' : '' %></span>
@@ -245,6 +252,13 @@
         li.dataset.done = String(Boolean(item.done));
 
         li.innerHTML = `
+          <div class="drag-handle" aria-label="並び替え">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+              <line x1="4" y1="8" x2="20" y2="8"></line>
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <line x1="4" y1="16" x2="20" y2="16"></line>
+            </svg>
+          </div>
           <form class="toggle-form" action="/toggle/${item.id}" method="post">
             <button class="check-btn" type="submit" aria-label="${item.done ? '未完了に戻す' : '完了にする'}">
               <span class="checkmark">${item.done ? '✓' : ''}</span>
@@ -261,11 +275,18 @@
           </form>
         `;
 
-        li.draggable = true;
         return li;
       };
 
       const attachItemEvents = (itemElement) => {
+        const handle = itemElement.querySelector('.drag-handle');
+        if (handle) {
+          handle.addEventListener('mousedown', () => { itemElement.draggable = true; });
+          handle.addEventListener('touchstart', () => { itemElement.draggable = true; }, { passive: true });
+          handle.addEventListener('mouseup', () => { itemElement.draggable = false; });
+          handle.addEventListener('touchend', () => { itemElement.draggable = false; });
+        }
+
         itemElement.addEventListener('dragstart', (event) => {
           draggedItem = itemElement;
           itemElement.classList.add('dragging');
@@ -274,6 +295,7 @@
         });
 
         itemElement.addEventListener('dragend', () => {
+          itemElement.draggable = false;
           itemElement.classList.remove('dragging');
           itemElement.classList.remove('drag-over');
           itemElement.classList.remove('drag-over-top');
@@ -699,7 +721,13 @@
       const items = [...document.querySelectorAll('.shopping-item')];
 
       items.forEach((item) => {
-        item.draggable = true;
+        const handle = item.querySelector('.drag-handle');
+        if (handle) {
+          handle.addEventListener('mousedown', () => { item.draggable = true; });
+          handle.addEventListener('touchstart', () => { item.draggable = true; }, { passive: true });
+          handle.addEventListener('mouseup', () => { item.draggable = false; });
+          handle.addEventListener('touchend', () => { item.draggable = false; });
+        }
 
         item.addEventListener('dragstart', (event) => {
           draggedItem = item;
@@ -709,6 +737,7 @@
         });
 
         item.addEventListener('dragend', () => {
+          item.draggable = false;
           item.classList.remove('dragging');
           item.classList.remove('drag-over');
           item.classList.remove('drag-over-top');

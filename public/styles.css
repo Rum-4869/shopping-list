@@ -503,10 +503,36 @@ input[type="text"]:focus {
   border-radius: 18px;
   padding: 12px 14px;
   box-shadow: var(--card-shadow);
-  cursor: grab;
   min-height: 58px;
   position: relative;
   transition: transform 0.2s ease, opacity 0.25s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+  cursor: grab;
+  padding: 4px;
+  margin-left: -4px;
+  transition: color 0.15s ease;
+}
+
+.drag-handle:hover {
+  color: #94a3b8;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+body.dark-mode .drag-handle {
+  color: #475569;
+}
+
+body.dark-mode .drag-handle:hover {
+  color: #64748b;
 }
 
 .shopping-item:hover {
