@@ -119,7 +119,12 @@
             </button>
           </form>
 
-          <span class="item-name"><%= itemName %></span>
+          <div class="item-info" style="display: flex; flex-direction: column; gap: 2px;">
+            <span class="item-name"><%= itemName %></span>
+            <% if (isShared && item.addedByName) { %>
+              <small class="added-by" style="font-size: 0.7rem; color: var(--muted);">by <%= item.addedByName %></small>
+            <% } %>
+          </div>
 
           <div class="quantity-controller">
             <button type="button" class="qty-btn qty-minus" data-id="<%= item.id %>" aria-label="減らす">−</button>
@@ -140,6 +145,7 @@
   <script src="/sound.js?v=4"></script>
   <script src="/notify.js?v=4"></script>
   <script>
+    window.isShared = <%= locals.isShared ? 'true' : 'false' %>;
     (() => {
       const THEME_KEY = 'shopping-settings-v1';
       const settings = JSON.parse(localStorage.getItem(THEME_KEY) || '{}');
@@ -265,7 +271,10 @@
               <span class="checkmark">${item.done ? '✓' : ''}</span>
             </button>
           </form>
-          <span class="item-name">${item.name}</span>
+          <div class="item-info" style="display: flex; flex-direction: column; gap: 2px;">
+            <span class="item-name">${item.name}</span>
+            ${window.isShared && item.addedByName ? `<small class="added-by" style="font-size: 0.7rem; color: var(--muted);">by ${item.addedByName}</small>` : ''}
+          </div>
           <div class="quantity-controller">
             <button type="button" class="qty-btn qty-minus" data-id="${item.id}" aria-label="減らす">−</button>
             <span class="qty-value" data-id="${item.id}">${item.quantity || 1}</span>

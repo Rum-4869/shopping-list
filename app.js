@@ -88,6 +88,9 @@ function ensureUserSession(req, res) {
     req.userId = userId;
     req.isShared = false;
   }
+  
+  // 個人IDは常に保持
+  req.realUserId = userId;
 }
 
 app.use((req, res, next) => {
@@ -226,12 +229,29 @@ app.post('/notes', async (req, res, next) => {
 });
 
 // 設定画面（GET）
-app.get('/settings', (req, res) => {
-  res.render('settings.ejs', {
-    activeTab: 'settings',
-    isShared: req.isShared,
-    roomName: req.roomName
-  });
+app.get('/settings', async (req, res, next) => {
+  try {
+    const displayName = await db.getUserName(req.realUserId);
+    res.render('settings.ejs', {
+      activeTab: 'settings',
+      isShared: req.isShared,
+      roomName: req.roomName,
+      displayName
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// 表示名の変更（POST）
+app.post('/settings/name', async (req, res, next) => {
+  try {
+    const name = req.body.displayName || '';
+    await db.updateUserName(req.realUserId, name);
+    res.redirect('/settings');
+  } catch (error) {
+    next(error);
+  }
 });
 
 // 共有ルームへの参加・作成（POST）
@@ -273,7 +293,7 @@ app.post('/add', async (req, res, next) => {
   try {
     const userId = req.userId;
     const itemName = req.body.itemName;
-    const result = await db.addItem(userId, itemName);
+    const result = await db.addItem(userId, itemName, req.realUserId);
 
     if (!result.ok) {
       if (isJsonRequest(req)) {

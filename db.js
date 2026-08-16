@@ -81,9 +81,19 @@ async function initDatabase() {
   try {
     await currentPool.query('ALTER TABLE shopping_items ADD COLUMN quantity INT DEFAULT 1 AFTER done');
   } catch (err) {
-    if (err.code !== 'ER_DUP_FIELDNAME') {
-      console.error('Failed to add quantity column:', err);
-    }
+    if (err.code !== 'ER_DUP_FIELDNAME') console.error('Failed to add quantity column:', err);
+  }
+
+  try {
+    await currentPool.query('ALTER TABLE shopping_users ADD COLUMN display_name VARCHAR(255) DEFAULT NULL');
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') console.error('Failed to add display_name column:', err);
+  }
+
+  try {
+    await currentPool.query('ALTER TABLE shopping_items ADD COLUMN added_by VARCHAR(64) DEFAULT NULL');
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') console.error('Failed to add added_by column:', err);
   }
 
   // メモ帳テーブル
@@ -147,7 +157,11 @@ async function loadItemsForUser(userId) {
   await ensureUserInitialized(userId);
 
   const [rows] = await currentPool.query(
-    'SELECT id, name, done, quantity, display_order FROM shopping_items WHERE user_id = ? ORDER BY display_order ASC, id ASC',
+    `SELECT i.id, i.name, i.done, i.quantity, i.display_order, u.display_name AS addedByName
+     FROM shopping_items i
+     LEFT JOIN shopping_users u ON i.added_by = u.user_id
+     WHERE i.user_id = ?
+     ORDER BY i.display_order ASC, i.id ASC`,
     [userId]
   );
 
@@ -155,13 +169,15 @@ async function loadItemsForUser(userId) {
     id: row.id,
     name: row.name,
     done: Boolean(row.done),
-    quantity: row.quantity || 1
+    quantity: row.quantity || 1,
+    addedByName: row.addedByName || ''
   }));
 }
 
-async function addItem(userId, name) {
+async function addItem(userId, name, realUserId = null) {
   const currentPool = getPool();
   await ensureUserInitialized(userId);
+  if (realUserId) await ensureUserInitialized(realUserId);
 
   const trimmedName = String(name || '').trim();
   if (!trimmedName || trimmedName.length > 30) {
@@ -186,15 +202,22 @@ async function addItem(userId, name) {
   const nextOrder = (orderResult[0]?.max_order || 0) + 1;
 
   const [insertResult] = await currentPool.query(
-    'INSERT INTO shopping_items (user_id, name, done, display_order) VALUES (?, ?, 0, ?)',
-    [userId, trimmedName, nextOrder]
+    'INSERT INTO shopping_items (user_id, name, done, display_order, added_by) VALUES (?, ?, 0, ?, ?)',
+    [userId, trimmedName, nextOrder, realUserId || null]
   );
+
+  let addedByName = '';
+  if (realUserId) {
+    const [u] = await currentPool.query('SELECT display_name FROM shopping_users WHERE user_id = ? LIMIT 1', [realUserId]);
+    if (u.length > 0) addedByName = u[0].display_name || '';
+  }
 
   const newItem = {
     id: insertResult.insertId,
     name: trimmedName,
     done: false,
-    quantity: 1
+    quantity: 1,
+    addedByName
   };
 
   return { ok: true, item: newItem };
@@ -451,9 +474,14 @@ async function closePool() {
 
 async function getAllDataForAdmin() {
   const currentPool = getPool();
-  const [users] = await currentPool.query('SELECT user_id, created_at FROM shopping_users ORDER BY created_at DESC');
+  const [users] = await currentPool.query('SELECT user_id, display_name, created_at FROM shopping_users ORDER BY created_at DESC');
   
-  const [items] = await currentPool.query('SELECT id, user_id, name, done, quantity FROM shopping_items ORDER BY display_order ASC, id ASC');
+  const [items] = await currentPool.query(
+    `SELECT i.id, i.user_id, i.name, i.done, i.quantity, u.display_name AS addedByName 
+     FROM shopping_items i 
+     LEFT JOIN shopping_users u ON i.added_by = u.user_id 
+     ORDER BY i.display_order ASC, i.id ASC`
+  );
   
   const itemsByUser = {};
   items.forEach(item => {
@@ -462,16 +490,33 @@ async function getAllDataForAdmin() {
       id: item.id,
       name: item.name,
       done: Boolean(item.done),
-      quantity: item.quantity || 1
+      quantity: item.quantity || 1,
+      addedByName: item.addedByName || ''
     });
   });
 
   return users.map(user => ({
     userId: user.user_id,
+    displayName: user.display_name || '',
     isShared: user.user_id.startsWith('room:'),
     createdAt: user.created_at,
     items: itemsByUser[user.user_id] || []
   }));
+}
+
+async function getUserName(userId) {
+  const currentPool = getPool();
+  await ensureUserInitialized(userId);
+  const [rows] = await currentPool.query('SELECT display_name FROM shopping_users WHERE user_id = ? LIMIT 1', [userId]);
+  return rows.length > 0 ? (rows[0].display_name || '') : '';
+}
+
+async function updateUserName(userId, name) {
+  const currentPool = getPool();
+  await ensureUserInitialized(userId);
+  const trimmed = String(name || '').trim();
+  await currentPool.query('UPDATE shopping_users SET display_name = ? WHERE user_id = ?', [trimmed || null, userId]);
+  return { ok: true };
 }
 
 module.exports = {
@@ -490,6 +535,8 @@ module.exports = {
   addPreset,
   deletePreset,
   getAllDataForAdmin,
+  getUserName,
+  updateUserName,
   closePool
 };
 

@@ -44,6 +44,16 @@
       </div>
     </div>
 
+    <!-- 自分の名前設定 -->
+    <div class="mini-panel share-panel" style="margin-bottom: 16px;">
+      <h2 style="font-size: 1rem; margin: 0 0 8px;">自分の名前（表示名）</h2>
+      <p style="margin: 0 0 10px; font-size: 0.84rem;">共有リストでアイテムを追加した時に、誰が追加したか分かるようになります。</p>
+      <form action="/settings/name" method="post" style="display: flex; gap: 8px;">
+        <input type="text" name="displayName" class="add-input" value="<%= typeof displayName !== 'undefined' ? displayName : '' %>" placeholder="例: パパ、ママ" style="flex: 1;" maxlength="20">
+        <button type="submit" class="add-btn" style="padding: 0 16px;">保存</button>
+      </form>
+    </div>
+
     <!-- リスト共有（合言葉）設定 -->
     <div class="mini-panel share-panel">
       <h2 style="font-size: 1rem; margin: 0 0 8px;">リスト共有（合言葉）</h2>
