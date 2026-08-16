@@ -146,7 +146,7 @@
           <% if (user.isShared) { %>
             <span class="room-badge">合言葉</span> <%= user.userId.replace('room:', '') %>
           <% } else { %>
-            <span class="personal-badge">個人</span> <%= user.userId.substring(0, 8) %>...
+            <span class="personal-badge">個人</span> <%= user.displayName ? user.displayName : user.userId.substring(0, 8) + '...' %>
           <% } %>
           <span class="meta-info">
             作成: <%= new Date(user.createdAt).toLocaleString('ja-JP') %>
@@ -159,6 +159,9 @@
             <% user.items.forEach(item => { %>
               <span class="item-tag <%= item.done ? 'done' : '' %>">
                 <%= item.name %> <small>x<%= item.quantity %></small>
+                <% if (user.isShared && item.addedByName) { %>
+                  <small style="opacity: 0.7; margin-left: 4px;">(by <%= item.addedByName %>)</small>
+                <% } %>
               </span>
             <% }) %>
           <% } %>
