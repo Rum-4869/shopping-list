@@ -5,33 +5,12 @@ let pool = null;
 
 function getPool() {
   if (!pool) {
-    if (!process.env.TIDB_HOST && !process.env.DATABASE_URL) {
-      throw new Error(
-        '【環境変数が未設定です】TIDB_HOST が見つかりません。デプロイ先（Render等）のダッシュボードで Environment Variables を設定してください。'
-      );
-    }
-
-    if (process.env.DATABASE_URL) {
-      pool = mysql.createPool({
-        uri: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: true },
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-      });
-    } else {
-      pool = mysql.createPool({
-        host: process.env.TIDB_HOST,
-        port: Number(process.env.TIDB_PORT) || 4000,
-        user: process.env.TIDB_USER || process.env.DB_USER,
-        password: process.env.TIDB_PASSWORD || process.env.DB_PASSWORD,
-        database: process.env.TIDB_DATABASE || process.env.DB_NAME,
-        ssl: { rejectUnauthorized: true },
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0
-      });
-    }
+    pool = mysql.createPool({
+      uri: process.env.DATABASE_URL,
+      ssl: {
+        rejectUnauthorized: false
+      }
+    });
   }
   return pool;
 }
