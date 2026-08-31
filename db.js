@@ -12,7 +12,8 @@ function getPool() {
       database: process.env.TIDB_DATABASE,
       port: Number(process.env.TIDB_PORT || 4000),
       ssl: {
-        rejectUnauthorized: false
+        minVersion: 'TLSv1.2',
+        rejectUnauthorized: true
       }
     });
   }
