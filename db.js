@@ -6,7 +6,11 @@ let pool = null;
 function getPool() {
   if (!pool) {
     pool = mysql.createPool({
-      uri: process.env.DATABASE_URL,
+      host: process.env.TIDB_HOST,
+      user: process.env.TIDB_USER,
+      password: process.env.TIDB_PASSWORD,
+      database: process.env.TIDB_DATABASE,
+      port: Number(process.env.TIDB_PORT || 4000),
       ssl: {
         rejectUnauthorized: false
       }
