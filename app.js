@@ -419,9 +419,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('サーバーエラーが発生しました');
 });
 
-module.exports = app;
-
-if (require.main === module) {
+if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3000;
   db.initDatabase()
     .then(() => {
@@ -434,3 +432,5 @@ if (require.main === module) {
       process.exit(1);
     });
 }
+
+module.exports = app;
