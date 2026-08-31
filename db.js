@@ -11,15 +11,10 @@ function getPool() {
       );
     }
 
-    const sslConfig =
-      process.env.TIDB_ENABLE_SSL === 'false'
-        ? undefined
-        : { minVersion: 'TLSv1.2', rejectUnauthorized: true };
-
     if (process.env.DATABASE_URL) {
       pool = mysql.createPool({
         uri: process.env.DATABASE_URL,
-        ssl: sslConfig,
+        ssl: { rejectUnauthorized: true },
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0
@@ -31,7 +26,7 @@ function getPool() {
         user: process.env.TIDB_USER,
         password: process.env.TIDB_PASSWORD,
         database: process.env.TIDB_DATABASE || 'test',
-        ssl: sslConfig,
+        ssl: { rejectUnauthorized: true },
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0
