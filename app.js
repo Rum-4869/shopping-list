@@ -6,6 +6,7 @@ const server = http.createServer(app);
 const { Server } = require('socket.io');
 const io = new Server(server);
 const db = require('./db');
+const path = require('path');
 
 io.on('connection', (socket) => {
   socket.on('join', (room) => {
@@ -19,9 +20,10 @@ app.use((req, res, next) => {
 });
 
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // CSSや画像などの静的ファイルを配信できるようにする
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
 // フォームから送られたデータを受け取る
